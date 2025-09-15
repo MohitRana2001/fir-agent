@@ -1,0 +1,9 @@
+google-adk
+python-multipart
+pypdf2
+python-docx
+pydantic
+dotenv
+google-genai
+google-generativeai
+IPython

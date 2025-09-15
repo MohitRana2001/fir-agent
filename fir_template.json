@@ -1,0 +1,50 @@
+{
+  "required_fields": {
+    "complainant_name": {
+      "type": "string",
+      "description": "Full name of the person filing the complaint"
+    },
+    "complainant_address": {
+      "type": "string",
+      "description": "Complete address of the complainant"
+    },
+    "complainant_phone": {
+      "type": "string",
+      "description": "Contact phone number of the complainant"
+    },
+    "incident_date": {
+      "type": "datetime",
+      "description": "Date and time when the incident occurred"
+    },
+    "incident_location": {
+      "type": "string",
+      "description": "Exact location where the incident took place"
+    },
+    "incident_description": {
+      "type": "string",
+      "description": "Detailed description of the incident"
+    },
+    "nature_of_complaint": {
+      "type": "string",
+      "description": "Type of complaint (theft, assault, fraud, etc.)"
+    }
+  },
+  "optional_fields": {
+    "witnesses": {
+      "type": "array",
+      "description": "List of witnesses with their names and contact information"
+    },
+    "evidence_description": {
+      "type": "string",
+      "description": "Description of any evidence related to the incident"
+    },
+    "accused_details": {
+      "type": "string",
+      "description": "Details about the accused person(s) if known"
+    },
+    "property_loss": {
+      "type": "string",
+      "description": "Details of any property lost or damaged"
+    }
+  }
+}

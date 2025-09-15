@@ -1,0 +1,4 @@
+venv/
+.env
+fir_agent/.env
+__pycache__/
