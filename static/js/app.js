@@ -1,17 +1,7 @@
-/**
- * app.js: JS code for the adk-streaming sample app.
- */
-
-/**
- * SSE (Server-Sent Events) handling
- */
-
-// Connect the server with SSE
 const sessionId = Math.random().toString().substring(10);
-const sse_url =
-  "http://" + window.location.host + "/events/" + sessionId;
-const send_url =
-  "http://" + window.location.host + "/send/" + sessionId;
+const sse_url = "http://" + window.location.host + "/events/" + sessionId;
+const send_url = "http://" + window.location.host + "/send/" + sessionId;
+const upload_url = "http://" + window.location.host + "/upload/" + sessionId; // New upload URL
 let eventSource = null;
 let is_audio = false;
 
@@ -19,6 +9,8 @@ let is_audio = false;
 const messageForm = document.getElementById("messageForm");
 const messageInput = document.getElementById("message");
 const messagesDiv = document.getElementById("messages");
+const attachmentButton = document.getElementById("attachmentButton"); // New
+const fileInput = document.getElementById("fileInput"); // New
 let currentMessageId = null;
 
 // SSE handlers
@@ -28,64 +20,44 @@ function connectSSE() {
 
   // Handle connection open
   eventSource.onopen = function () {
-    // Connection opened messages
     console.log("SSE connection opened.");
-    document.getElementById("messages").textContent = "Connection opened";
-
-    // Enable the Send button
+    messagesDiv.innerHTML = "";
     document.getElementById("sendButton").disabled = false;
     addSubmitHandler();
   };
 
   // Handle incoming messages
   eventSource.onmessage = function (event) {
-    // Parse the incoming message
     const message_from_server = JSON.parse(event.data);
     console.log("[AGENT TO CLIENT] ", message_from_server);
 
-    // Check if the turn is complete
-    // if turn complete, add new message
-    if (
-      message_from_server.turn_complete &&
-      message_from_server.turn_complete == true
-    ) {
+    
+
+    if (message_from_server.turn_complete && message_from_server.turn_complete == true) {
       currentMessageId = null;
       return;
     }
 
-    // Check for interrupt message
-    if (
-      message_from_server.interrupted &&
-      message_from_server.interrupted === true
-    ) {
-      // Stop audio playback if it's playing
+    if (message_from_server.interrupted && message_from_server.interrupted === true) {
       if (audioPlayerNode) {
         audioPlayerNode.port.postMessage({ command: "endOfAudio" });
       }
       return;
     }
 
-    // If it's audio, play it
     if (message_from_server.mime_type == "audio/pcm" && audioPlayerNode) {
       audioPlayerNode.port.postMessage(base64ToArray(message_from_server.data));
     }
 
-    // If it's a text, print it
     if (message_from_server.mime_type == "text/plain") {
-      // add a new message for a new turn
       if (currentMessageId == null) {
         currentMessageId = Math.random().toString(36).substring(7);
         const message = document.createElement("p");
         message.id = currentMessageId;
-        // Append the message element to the messagesDiv
         messagesDiv.appendChild(message);
       }
-
-      // Add message text to the existing message element
       const message = document.getElementById(currentMessageId);
       message.textContent += message_from_server.data;
-
-      // Scroll down to the bottom of the messagesDiv
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
   };
@@ -94,7 +66,10 @@ function connectSSE() {
   eventSource.onerror = function (event) {
     console.log("SSE connection error or closed.");
     document.getElementById("sendButton").disabled = true;
-    document.getElementById("messages").textContent = "Connection closed";
+    const p = document.createElement("p");
+    p.className = 'system-message';
+    p.textContent = "Connection closed. Reconnecting...";
+    messagesDiv.appendChild(p);
     eventSource.close();
     setTimeout(function () {
       console.log("Reconnecting...");
@@ -111,8 +86,11 @@ function addSubmitHandler() {
     const message = messageInput.value;
     if (message) {
       const p = document.createElement("p");
-      p.textContent = "> " + message;
+      // Display user message with the new style
+      p.className = "user-message";
+      p.textContent = message;
       messagesDiv.appendChild(p);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
       messageInput.value = "";
       sendMessage({
         mime_type: "text/plain",
@@ -124,7 +102,50 @@ function addSubmitHandler() {
   };
 }
 
-// Send a message to the server via HTTP POST
+// 1. FILE UPLOAD LOGIC
+attachmentButton.addEventListener("click", () => {
+  fileInput.click();
+});
+
+fileInput.addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    uploadFile(file);
+  }
+  // Reset file input to allow uploading the same file again
+  fileInput.value = "";
+});
+
+async function uploadFile(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const p = document.createElement("p");
+  p.className = "system-message";
+  p.textContent = `Uploading ${file.name}...`;
+  messagesDiv.appendChild(p);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+  try {
+    const response = await fetch(upload_url, {
+      method: "POST",
+      body: formData,
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      p.textContent = `Error uploading ${file.name}: ${result.detail || 'Server error'}`;
+    } else {
+      p.textContent = `Successfully uploaded and parsed ${file.name}.`;
+      // The server will handle sending the parsed text into the conversation
+    }
+  } catch (error) {
+    console.error("Error uploading file:", error);
+    p.textContent = `Failed to upload ${file.name}.`;
+  }
+}
+
+// (The rest of the file: sendMessage, base64ToArray, Audio handling, etc. remains the same)
+// ... (keep the rest of your app.js code from the sendMessage function onwards) ...
 async function sendMessage(message) {
   const isTextMessage = message.mime_type === "text/plain";
   const sendButton = document.getElementById("sendButton");
@@ -154,7 +175,6 @@ async function sendMessage(message) {
   }
 }
 
-// Decode Base64 data to Array
 function base64ToArray(base64) {
   const binaryString = window.atob(base64);
   const len = binaryString.length;
@@ -165,32 +185,21 @@ function base64ToArray(base64) {
   return bytes.buffer;
 }
 
-/**
- * Audio handling
- */
-
 let audioPlayerNode;
 let audioPlayerContext;
 let audioRecorderNode;
 let audioRecorderContext;
 let micStream;
-
-// Audio buffering for 0.2s intervals
 let audioBuffer = [];
 let bufferTimer = null;
-
-// Import the audio worklets
 import { startAudioPlayerWorklet } from "./audio-player.js";
 import { startAudioRecorderWorklet } from "./audio-recorder.js";
 
-// Start audio
 function startAudio() {
-  // Start audio output
   startAudioPlayerWorklet().then(([node, ctx]) => {
     audioPlayerNode = node;
     audioPlayerContext = ctx;
   });
-  // Start audio input
   startAudioRecorderWorklet(audioRecorderHandler).then(
     ([node, ctx, stream]) => {
       audioRecorderNode = node;
@@ -200,8 +209,6 @@ function startAudio() {
   );
 }
 
-// Start the audio only when the user clicked the button
-// (due to the gesture requirement for the Web Audio API)
 const startAudioButton = document.getElementById("startAudioButton");
 const stopAudioButton = document.getElementById("stopAudioButton");
 
@@ -210,8 +217,8 @@ startAudioButton.addEventListener("click", () => {
   stopAudioButton.disabled = false;
   startAudio();
   is_audio = true;
-  eventSource.close(); // close current connection
-  connectSSE(); // reconnect with the audio mode
+  eventSource.close(); 
+  connectSSE(); 
 });
 
 stopAudioButton.addEventListener("click", () => {
@@ -220,69 +227,53 @@ stopAudioButton.addEventListener("click", () => {
   stopAudioRecording();
   micStream.getTracks().forEach(track => track.stop());
   is_audio = false;
-  eventSource.close(); // close current connection
-  connectSSE(); // reconnect with the audio mode
+  eventSource.close(); 
+  connectSSE(); 
   const p = document.createElement("p");
-  p.textContent = "Transcribing audio...";
+  p.className = 'system-message'; // Use system message style
+  p.textContent = "Transcribing final audio...";
   messagesDiv.appendChild(p);
 });
 
-// Audio recorder handler
 function audioRecorderHandler(pcmData) {
-  // Add audio data to buffer
   audioBuffer.push(new Uint8Array(pcmData));
-  
-  // Start timer if not already running
   if (!bufferTimer) {
-    bufferTimer = setInterval(sendBufferedAudio, 200); // 0.2 seconds
+    bufferTimer = setInterval(sendBufferedAudio, 200);
   }
 }
 
-// Send buffered audio data every 0.2 seconds
 function sendBufferedAudio() {
   if (audioBuffer.length === 0) {
     return;
   }
-  
-  // Calculate total length
   let totalLength = 0;
   for (const chunk of audioBuffer) {
     totalLength += chunk.length;
   }
-  
-  // Combine all chunks into a single buffer
   const combinedBuffer = new Uint8Array(totalLength);
   let offset = 0;
   for (const chunk of audioBuffer) {
     combinedBuffer.set(chunk, offset);
     offset += chunk.length;
   }
-  
-  // Send the combined audio data
   sendMessage({
     mime_type: "audio/pcm",
     data: arrayBufferToBase64(combinedBuffer.buffer),
   });
   console.log("[CLIENT TO AGENT] sent %s bytes", combinedBuffer.byteLength);
-  
-  // Clear the buffer
   audioBuffer = [];
 }
 
-// Stop audio recording and cleanup
 function stopAudioRecording() {
   if (bufferTimer) {
     clearInterval(bufferTimer);
     bufferTimer = null;
   }
-  
-  // Send any remaining buffered audio
   if (audioBuffer.length > 0) {
     sendBufferedAudio();
   }
 }
 
-// Encode an array buffer with Base64
 function arrayBufferToBase64(buffer) {
   let binary = "";
   const bytes = new Uint8Array(buffer);
