@@ -61,13 +61,13 @@ def parse_speech(audio_data: bytes) -> str:
         return f"Error during speech recognition: {e}"
 
 def validate_data(
-    complainant_name: str = "",
-    complainant_address: str = "",
-    complainant_phone: str = "",
-    incident_date: str = "",
-    incident_location: str = "",
-    incident_description: str = "",
-    nature_of_complaint: str = "",
+    complainant_name: str,
+    complainant_address: str,
+    complainant_phone: str,
+    incident_date: str,
+    incident_location: str,
+    incident_description: str,
+    nature_of_complaint: str,
 ) -> str:
     """
     Validates the user-provided details against the FIR template.
