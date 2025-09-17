@@ -37,9 +37,7 @@ export async function startAudioRecorderWorklet(audioRecorderHandler) {
   return [audioRecorderNode, audioRecorderContext, micStream];
 }
 
-/**
- * Stop the microphone.
- */
+//Stop the microphone.
 export function stopMicrophone(micStream) {
   micStream.getTracks().forEach((track) => track.stop());
   console.log("stopMicrophone(): Microphone stopped.");
