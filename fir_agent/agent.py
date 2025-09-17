@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 from google.adk.agents import Agent
 from google.genai import types
 from pydantic import BaseModel, Field
-from .tools import parse_document, parse_speech, validate_data
+from .tools import parse_document, validate_data
 
 load_dotenv()
 

@@ -1,11 +1,12 @@
 import json
 import os
 import textract
-from google.cloud import speech
-from google.api_core import exceptions as google_exceptions
-from google.genai.types import Blob
+from google import genai
+from google.genai.types import GenerateContentConfig, Part
+from dotenv import load_dotenv
 
-# This function is completely replaced to support .doc, .docx, and .pdf
+load_dotenv()
+
 def parse_document(file_path: str) -> str:
     """
     Parses a document (PDF, DOCX, DOC) and returns the text content.
@@ -20,9 +21,7 @@ def parse_document(file_path: str) -> str:
         return f"Error: File not found at {file_path}"
 
     try:
-        # textract handles various file types automatically
         text_bytes = textract.process(file_path)
-        # Decode bytes to a UTF-8 string, ignoring errors
         text = text_bytes.decode('utf-8', errors='ignore')
         if not text.strip():
             return "Error: Could not extract any text from the document. It might be empty or an image-based file."
@@ -32,45 +31,33 @@ def parse_document(file_path: str) -> str:
     except Exception as e:
         return f"Error parsing document: {e}"
 
-# This function is updated with better error handling
-def parse_speech(audio_data: Blob) -> str:
-    """
-    Transcribes audio data to text using Google Cloud Speech-to-Text.
-    NOTE: Ensure your environment is authenticated with Google Cloud.
-    Set the GOOGLE_APPLICATION_CREDENTIALS environment variable.
-
-    Args:
-        audio_data (Blob): The audio blob to transcribe.
-
-    Returns:
-        str: The transcribed text.
-    """
+def transcribe_audio_file(file_path: str) -> str:
+    """Transcribes an audio file and returns the text."""
     try:
-        client = speech.SpeechClient()
-        audio = speech.RecognitionAudio(content=audio_data.data)
-        # The sample rate must match the audio recorded on the client-side (16000Hz)
-        config = speech.RecognitionConfig(
-            encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-            sample_rate_hertz=16000,
-            language_code="en-US",
-        )
-        response = client.recognize(config=config, audio=audio)
-        if response.results:
-            return response.results[0].alternatives[0].transcript
-        else:
-            # This can happen if the audio is silent or unintelligible
-            return ""
-    except google_exceptions.PermissionDenied as e:
-        print(f"GCP PERMISSION DENIED: {e}")
-        return "Error: Speech recognition permission denied. Check API key and credentials."
-    except google_exceptions.InvalidArgument as e:
-        print(f"GCP INVALID ARGUMENT: {e}")
-        return "Error: Invalid audio data sent for speech recognition."
-    except Exception as e:
-        print(f"SPEECH RECOGNITION ERROR: {e}")
-        return f"Error during speech recognition: {e}"
+        client = genai.Client()
+        print(f"Transcribing audio file: {file_path}")
 
-# (validate_data function remains unchanged)
+        with open(file_path, "rb") as f:
+            audio_bytes = f.read()
+
+        audio_file_part = Part.from_data(data=audio_bytes, mime_type="audio/pcm")
+
+        prompt = "Transcribe this audio recording of a complainant giving a statement for a First Information Report (FIR)."
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                prompt,
+                audio_file_part,
+            ],
+        )
+        
+        print("Transcription successful.")
+        return response.text
+    except Exception as e:
+        print(f"Error during transcription: {e}")
+        return f"Error: {e}"
+
 def validate_data(
     complainant_name: str = "",
     complainant_address: str = "",
@@ -107,6 +94,6 @@ def validate_data(
             missing_fields.append(field)
 
     if not missing_fields:
-        return "All required information has been provided. The FIR can be filed."
+        return "All required information has been provided."
     else:
         return f"The following information is missing: {', '.join(missing_fields)}"
