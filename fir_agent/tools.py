@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from pathlib import Path
 from google import genai
 from google.genai.types import GenerateContentConfig
@@ -49,9 +50,24 @@ def transcribe_audio_file(file_path: str) -> str:
         print(f"Transcribing audio file: {file_path}")
 
         uploaded_file = client.files.upload(file=Path(file_path))
+        print(f"Uploaded file '{uploaded_file.display_name}' as: {uploaded_file.name}")
+
+        # Wait for the file to be active
+        print("Waiting for file to be processed...")
+        while uploaded_file.state.name == "PROCESSING":
+            time.sleep(2) # Poll every 2 seconds
+            uploaded_file = client.files.get(name=uploaded_file.name)
+
+        if uploaded_file.state.name == "FAILED":
+            print(f"File processing failed: {uploaded_file.state}")
+            return f"Error: File processing failed on the server."
+
+        if uploaded_file.state.name != "ACTIVE":
+            print(f"File is not active: {uploaded_file.state}")
+            return f"Error: File could not be processed. State: {uploaded_file.state.name}"
 
         prompt = (
-            "Summarize this audio interview for FIR context. "
+            "This is an audio recording of a person reporting an incident for an FIR. Please transcribe the audio clearly."
         )
 
         response = client.models.generate_content(
@@ -114,22 +130,18 @@ def validate_data(
 def upload_fir_to_gcp(fir_data: dict) -> str:
     """Uploads FIR data to Google Cloud Storage bucket."""
     try:
-        # Initialize GCP Storage client
         client = storage.Client()
         bucket_name = os.getenv('GCP_BUCKET_NAME', 'fir-submissions')
         bucket = client.bucket(bucket_name)
         
-        # Generate unique filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         fir_id = str(uuid.uuid4())[:8]
         filename = f"fir_{timestamp}_{fir_id}.json"
         
-        # Add metadata
         fir_data['submission_id'] = fir_id
         fir_data['submitted_at'] = datetime.now().isoformat()
         fir_data['status'] = 'submitted'
         
-        # Upload to GCP
         blob = bucket.blob(filename)
         blob.upload_from_string(
             json.dumps(fir_data, indent=2),

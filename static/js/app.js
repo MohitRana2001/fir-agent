@@ -160,31 +160,9 @@ function base64ToArray(base64) {
   return bytes.buffer;
 }
 
-let audioPlayerNode;
-let audioPlayerContext;
-let audioRecorderNode;
-let audioRecorderContext;
 let micStream;
 let mediaRecorder;
 let mediaChunks = [];
-let audioBuffer = [];
-let bufferTimer = null;
-import { startAudioPlayerWorklet } from "./audio-player.js";
-import { startAudioRecorderWorklet } from "./audio-recorder.js";
-
-function startAudio() {
-  startAudioPlayerWorklet().then(([node, ctx]) => {
-    audioPlayerNode = node;
-    audioPlayerContext = ctx;
-  });
-  startAudioRecorderWorklet(audioRecorderHandler).then(
-    ([node, ctx, stream]) => {
-      audioRecorderNode = node;
-      audioRecorderContext = ctx;
-      micStream = stream;
-    }
-  );
-}
 
 const startAudioButton = document.getElementById("startAudioButton");
 const stopAudioButton = document.getElementById("stopAudioButton");
@@ -195,19 +173,17 @@ startAudioButton.addEventListener("click", async () => {
   is_audio = true;
 
   try {
-    const getCleanMic = () =>
-      navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-          sampleRate: 48000,
-        },
-      });
-    micStream = await getCleanMic();
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        sampleRate: 16000, // More efficient sample rate for voice
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
 
-    function pickBestMime() {
+    const pickBestMime = () => {
       const mimes = [
         "audio/webm;codecs=opus",
         "audio/webm",
@@ -217,12 +193,11 @@ startAudioButton.addEventListener("click", async () => {
       return mimes.find((m) => MediaRecorder.isTypeSupported(m)) || "";
     }
     const mimeType = pickBestMime();
-    const options = {};
-    if (mimeType) options.mimeType = mimeType;
-    options.audioBitsPerSecond = 128000;
+    const options = { mimeType, audioBitsPerSecond: 128000 };
+    
     mediaRecorder = new MediaRecorder(micStream, options);
-    mediaChunks = [];
-    mediaRecorder = new MediaRecorder(micStream, { mimeType });
+    mediaChunks = []; // Clear any previous chunks
+
     mediaRecorder.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) mediaChunks.push(e.data);
     };
@@ -288,63 +263,6 @@ stopAudioButton.addEventListener("click", () => {
   } catch {}
 });
 
-function audioRecorderHandler(pcmData) {
-  audioBuffer.push(new Uint8Array(pcmData));
-  if (!bufferTimer) {
-    bufferTimer = setInterval(sendBufferedAudio, 200);
-  }
-}
-
-function sendBufferedAudio() {
-  if (audioBuffer.length === 0) {
-    return;
-  }
-  let totalLength = 0;
-  for (const chunk of audioBuffer) {
-    totalLength += chunk.length;
-  }
-  const combinedBuffer = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of audioBuffer) {
-    combinedBuffer.set(chunk, offset);
-    offset += chunk.length;
-  }
-  audioBuffer = [combinedBuffer];
-}
-
-function stopAudioRecording() {
-  if (bufferTimer) {
-    clearInterval(bufferTimer);
-    bufferTimer = null;
-  }
-}
-
-function processRecordedAudio() {
-  if (audioBuffer.length === 0) {
-    const p = document.createElement("p");
-    p.className = "system-message";
-    p.textContent = "No audio captured.";
-    messagesDiv.appendChild(p);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    return;
-  }
-
-  let totalLength = 0;
-  for (const chunk of audioBuffer) {
-    totalLength += chunk.length;
-  }
-  const combined = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of audioBuffer) {
-    combined.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  const wavBlob = pcmToWav(combined, 16000, 1);
-  uploadAudioForTranscription(wavBlob);
-  audioBuffer = [];
-}
-
 async function uploadAudioForTranscription(audioBlob) {
   const formData = new FormData();
   formData.append("audio_file", audioBlob, "recorded_audio.wav");
@@ -367,7 +285,7 @@ async function uploadAudioForTranscription(audioBlob) {
         await chatMessage(`[Audio Recording] ${result.transcription}`);
       }
     } else {
-      p.textContent = `❌ Transcription failed: ${
+      p.textContent = `Transcription failed: ${
         result.message || "Unknown error"
       }`;
       messagesDiv.appendChild(p);
@@ -376,53 +294,10 @@ async function uploadAudioForTranscription(audioBlob) {
   } catch (e) {
     const p = document.createElement("p");
     p.className = "system-message";
-    p.textContent = "❌ Failed to upload audio for transcription.";
+    p.textContent = "Failed to upload audio for transcription.";
     messagesDiv.appendChild(p);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   }
-}
-
-function pcmToWav(pcmBytes, sampleRate, numChannels) {
-  const bytesPerSample = 2;
-  const blockAlign = numChannels * bytesPerSample;
-  const byteRate = sampleRate * blockAlign;
-  const dataSize = pcmBytes.length;
-  const buffer = new ArrayBuffer(44 + dataSize);
-  const view = new DataView(buffer);
-
-  writeString(view, 0, "RIFF");
-  view.setUint32(4, 36 + dataSize, true);
-  writeString(view, 8, "WAVE");
-  writeString(view, 12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, byteRate, true);
-  view.setUint16(32, blockAlign, true);
-  view.setUint16(34, bytesPerSample * 8, true);
-  writeString(view, 36, "data");
-  view.setUint32(40, dataSize, true);
-
-  const out = new Uint8Array(buffer, 44);
-  out.set(pcmBytes);
-  return new Blob([buffer], { type: "audio/wav" });
-}
-
-function writeString(view, offset, string) {
-  for (let i = 0; i < string.length; i++) {
-    view.setUint8(offset + i, string.charCodeAt(i));
-  }
-}
-
-function arrayBufferToBase64(buffer) {
-  let binary = "";
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return window.btoa(binary);
 }
 
 const firFormButton = document.getElementById("firFormButton");
