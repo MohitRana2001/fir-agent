@@ -52,10 +52,9 @@ def transcribe_audio_file(file_path: str) -> str:
         uploaded_file = client.files.upload(file=Path(file_path))
         print(f"Uploaded file '{uploaded_file.display_name}' as: {uploaded_file.name}")
 
-        # Wait for the file to be active
         print("Waiting for file to be processed...")
         while uploaded_file.state.name == "PROCESSING":
-            time.sleep(2) # Poll every 2 seconds
+            time.sleep(2)
             uploaded_file = client.files.get(name=uploaded_file.name)
 
         if uploaded_file.state.name == "FAILED":
@@ -67,7 +66,10 @@ def transcribe_audio_file(file_path: str) -> str:
             return f"Error: File could not be processed. State: {uploaded_file.state.name}"
 
         prompt = (
-            "This is an audio recording of a person reporting an incident for an FIR. Please transcribe the audio clearly."
+            "This audio contains an interview between an Investigating Officer (IO) and a complainant for a "
+            "First Information Report (FIR). Your task is to provide a precise, verbatim transcription. "
+            "Differentiate between the speakers by starting each line with either 'Investigating Officer:' or 'Complainant:'. "
+            "The conversation may be multilingual; transcribe all speech accurately."
         )
 
         response = client.models.generate_content(
@@ -75,7 +77,6 @@ def transcribe_audio_file(file_path: str) -> str:
             contents=[prompt, uploaded_file],
         )
 
-        # Optional: clean up uploaded file handle on server side
         try:
             client.files.delete(name=uploaded_file.name)
         except Exception:

@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Bilingual Editable NCRB F.I.R. Form</title>
+    <style>
+        body {
+            background-color: #444;
+            padding: 0 10px;
+            margin: 0;
+            min-width: fit-content;
+            font-family: sans-serif;
+        }
+
+        .page-container {
+            margin: 10px auto;
+            width: fit-content;
+        }
+
+        .page {
+            overflow: hidden;
+            position: relative;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .editable-form input[type="text"],
+        .editable-form input[type="date"],
+        .editable-form input[type="time"],
+        .editable-form textarea {
+            background-color: white;
+            border: none;
+            border-bottom: 1px dotted #999;
+            position: absolute;
+            font-family: sub_TimesNewRomanPSMT_lfr, serif;
+            font-size: 12px;
+            padding: 1px;
+            padding-bottom: 2px;
+            box-sizing: border-box;
+            margin-bottom: 5px;
+        }
+
+        .editable-form textarea {
+            resize: none;
+            overflow: auto;
+        }
+
+        .editable-form input:focus,
+        .editable-form textarea:focus {
+            outline: none;
+            background-color: rgba(255, 255, 224, 0.5); /* Light yellow on focus */
+        }
+        
+        .editable-form .radio-group {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+        }
+        
+        .editable-form .radio-group label {
+             margin-right: 15px;
+        }
+
+    </style>
+
+    <style class="shared-css" type="text/css">
+        .t {
+            transform-origin: bottom left;
+            z-index: 2;
+            position: absolute;
+            white-space: pre;
+            overflow: visible;
+            line-height: 1.5;
+        }
+    </style>
+
+    <style id="fonts2" type="text/css">
+        @font-face {
+            font-family: sub_TimesNewRomanPS-BoldMT_lfb;
+            /* Base64 font data removed for brevity */
+            /* src: url(data:application/font-woff;charset=utf-8;base64, ...); */
+        }
+
+        @font-face {
+            font-family: sub_TimesNewRomanPSMT_lfr;
+            /* Base64 font data removed for brevity */
+            /* src: url(data:application/font-woff;charset=utf-8;base64, ...); */
+        }
+    </style>
+
+    <style type="text/css">
+        .s0 { font-size: 16px; font-family: sub_TimesNewRomanPS-BoldMT_lfb; color: #000; }
+        .s1 { font-size: 13px; font-family: sub_TimesNewRomanPS-BoldMT_lfb; color: #000; }
+        .s2 { font-size: 12px; font-family: sub_TimesNewRomanPSMT_lfr; color: #000; } 
+        .s3 { font-size: 16px; font-family: sub_TimesNewRomanPSMT_lfr; color: #000; }
+    </style>
+
+</head>
+
+<body>
+
+    <div class="page-container">
+        <div class="page" style="width: 909px; height: 1286px;">
+            <div id="pg1" style="-webkit-user-select: none;">
+                <div class="text-container">
+                    <span class="t s0" style="left:762px;bottom:1226px;">N.C.R.B. (एन.सी.आर.बी.)</span>
+                    <span class="t s0" style="left:780px;bottom:1203px;">I.I.F.-I (आई.आई.एफ.-I)</span>
+                    <span class="t s0" style="left:333px;bottom:1182px;">FIRST INFORMATION REPORT (प्रथम सूचना रिपोर्ट)</span>
+                    <span class="t s1" style="left:380px;bottom:1165px;">(Under Section 154 Cr.P.C.)</span>
+                    <span class="t s2" style="left:110px;bottom:1131px;">1. District (जिला)</span><span class="t s2" style="left:320px;bottom:1131px;">P.S. (थाना)</span><span class="t s2" style="left:480px;bottom:1131px;">Year (वर्ष)</span><span class="t s2" style="left:595px;bottom:1131px;">FIR No. (प्रा.सं.)</span><span class="t s2" style="left:730px;bottom:1131px;">Date (दिनांक)</span>
+                    <span class="t s2" style="left:110px;bottom:1097px;">2. (i) Act (अधिनियम)</span><span class="t s2" style="left:457px;bottom:1097px;">Sections (धाराएं)</span>
+                    <span class="t s2" style="left:165px;bottom:1062px;">(ii) Act (अधिनियम)</span><span class="t s2" style="left:461px;bottom:1062px;">Sections (धाराएं)</span>
+                    <span class="t s2" style="left:165px;bottom:1028px;">(iii) Act (अधिनियम)</span><span class="t s2" style="left:465px;bottom:1028px;">Sections (धाराएं)</span>
+                    <span class="t s2" style="left:165px;bottom:993px;">(iv) Other Acts &amp; Sections (अन्य अधिनियम और धाराएं)</span>
+                    <span class="t s2" style="left:110px;bottom:959px;">3. (a) Occurrence of offence (अपराध की घटना): Day (दिन)</span><span class="t s2" style="left:510px;bottom:959px;">Date from (दिनांक से)</span><span class="t s2" style="left:670px;bottom:959px;">Date to (दिनांक तक)</span>
+                    <span class="t s2" style="left:220px;bottom:924px;">Time Period (समयावधि)</span><span class="t s2" style="left:495px;bottom:924px;">Time from (समय से)</span><span class="t s2" style="left:660px;bottom:924px;">Time to (समय तक)</span>
+                    <span class="t s2" style="left:165px;bottom:890px;">(b) Information received at P.S. (थाने में सूचना): Date (दिनांक)</span><span class="t s2" style="left:660px;bottom:890px;">Time (समय)</span>
+                    <span class="t s2" style="left:165px;bottom:855px;">(c) General Diary Reference (रोजनामचा संदर्भ): Entry No. (प्रविष्टि सं.)</span><span class="t s2" style="left:660px;bottom:855px;">Time (समय)</span>
+                    <span class="t s2" style="left:110px;bottom:821px;">4. Type of Information (सूचना का प्रकार):</span>
+                    <span class="t s2" style="left:110px;bottom:786px;">5. Place of Occurrence (घटना स्थल): (a) Direction and distance from P.S. (थाने से दिशा और दूरी)</span>
+                    <span class="t s2" style="left:743px;bottom:752px;">Beat No. (बीट सं.)</span>
+                    <span class="t s2" style="left:165px;bottom:718px;">(b) Address (पता)</span>
+                    <span class="t s2" style="left:165px;bottom:666px;">(c) In case, outside the limit of this Police Station, then (यदि थाना क्षेत्र के बाहर है, तो)</span>
+                    <span class="t s2" style="left:220px;bottom:631px;">Name of P.S. (थाने का नाम)</span><span class="t s2" style="left:480px;bottom:631px;">District (जिला)</span>
+                    <span class="t s2" style="left:110px;bottom:597px;">6. Complainant / Informant (शिकायतकर्ता / सूचनाकर्ता):</span>
+                    <span class="t s2" style="left:165px;bottom:580px;">(a) Name (नाम)</span>
+                    <span class="t s2" style="left:165px;bottom:545px;">(b) Father's/Husband's Name (पिता/पति का नाम)</span>
+                    <span class="t s2" style="left:165px;bottom:511px;">(c) Date/Year of Birth (जन्म तिथि/वर्ष)</span><span class="t s2" style="left:470px;bottom:511px;">(d) Nationality (राष्ट्रीयता)</span>
+                    <span class="t s2" style="left:165px;bottom:476px;">(e) Passport No. (पासपोर्ट सं.)</span><span class="t s2" style="left:420px;bottom:476px;">Date of Issue (जारी तिथि)</span><span class="t s2" style="left:600px;bottom:476px;">Place of Issue (जारी स्थान)</span>
+                    <span class="t s2" style="left:165px;bottom:442px;">(f) Occupation (व्यवसाय)</span>
+                    <span class="t s2" style="left:165px;bottom:407px;">(g) Address (पता)</span>
+                    <span class="t s2" style="left:110px;bottom:373px;">7. Details of known/suspected/unknown accused with full particulars (ज्ञात/संदिग्ध/अज्ञात अभियुक्त का पूरा विवरण)</span>
+                    <span class="t s2" style="left:165px;bottom:356px;">(Attach separate sheet, if necessary) (यदि आवश्यक हो तो अलग शीट संलग्न करें)</span>
+                    <span class="t s2" style="left:110px;bottom:218px;">8. Reasons for delay in reporting by the complainant / informant (रिपोर्टिंग में देरी का कारण)</span>
+                    <span class="t s2" style="left:110px;bottom:132px;">9. Particulars of properties stolen (चोरी हुई संपत्ति का विवरण)</span>
+                    <span class="t s1" style="left:434px;bottom:45px;">--- : 1/2 : --- </span>
+                    <span class="t s0" style="left:762px;bottom:23px;">N.C.R.B.</span>
+                </div>
+            </div>
+
+            <form id="firFormP1" class="editable-form">
+                <input type="text" id="district" style="left:205px; bottom:1127px; width:110px;">
+                <input type="text" id="policeStation" style="left:380px; bottom:1127px; width:95px;">
+                <input type="text" id="firYear" style="left:530px; bottom:1127px; width:60px;">
+                <input type="text" id="firNo" style="left:665px; bottom:1127px; width:60px;">
+                <input type="date" id="firDate" style="left:795px; bottom:1127px; width:100px;">
+                <input type="text" id="act1" style="left:270px; bottom:1093px; width:180px;">
+                <input type="text" id="sections1" style="left:534px; bottom:1093px; width:280px;">
+                <input type="text" id="act2" style="left:270px; bottom:1058px; width:180px;">
+                <input type="text" id="sections2" style="left:534px; bottom:1058px; width:280px;">
+                <input type="text" id="act3" style="left:270px; bottom:1024px; width:180px;">
+                <input type="text" id="sections3" style="left:534px; bottom:1024px; width:280px;">
+                <input type="text" id="otherActs" style="left:460px; bottom:989px; width:355px;">
+                <input type="text" id="offenceDay" style="left:440px; bottom:955px; width:65px;">
+                <input type="date" id="offenceDateFrom" style="left:595px; bottom:955px; width:70px;">
+                <input type="date" id="offenceDateTo" style="left:755px; bottom:955px; width:70px;">
+                <input type="text" id="offenceTimePeriod" style="left:340px; bottom:920px; width:150px;">
+                <input type="time" id="offenceTimeFrom" style="left:575px; bottom:920px; width:80px;">
+                <input type="time" id="offenceTimeTo" style="left:735px; bottom:920px; width:80px;">
+                <input type="date" id="psReceiptDate" style="left:520px; bottom:886px; width:135px;">
+                <input type="time" id="psReceiptTime" style="left:710px; bottom:886px; width:105px;">
+                <input type="text" id="gdEntryNo" style="left:510px; bottom:851px; width:145px;">
+                <input type="time" id="gdEntryTime" style="left:710px; bottom:851px; width:105px;">
+                <div class="radio-group" style="left: 350px; bottom: 817px;">
+                    <label><input type="radio" name="infoType" value="Written"> Written (लिखित)</label>
+                    <label><input type="radio" name="infoType" value="Oral"> Oral (मौखिक)</label>
+                </div>
+                <input type="text" id="occurrenceDirectionDistance" style="left:550px; bottom:782px; width:265px;">
+                <input type="text" id="beatNo" style="left:810px; bottom:748px; width:90px;">
+                <textarea id="occurrenceAddress" style="left: 220px; bottom: 680px; width: 595px; height: 50px;"></textarea>
+                <input type="text" id="outsidePsName" style="left:320px; bottom:627px; width:155px;">
+                <input type="text" id="outsideDistrict" style="left:535px; bottom:627px; width:280px;">
+                <input type="text" id="complainantName" style="left:240px; bottom:576px; width:575px;">
+                <input type="text" id="complainantRelationName" style="left:395px; bottom:541px; width:420px;">
+                <input type="text" id="complainantDob" style="left:336px; bottom:507px; width:130px;">
+                <input type="text" id="complainantNationality" style="left:580px; bottom:507px; width:235px;">
+                <input type="text" id="complainantPassportNo" style="left:295px; bottom:472px; width:120px;">
+                <input type="text" id="complainantPassportDate" style="left:510px; bottom:472px; width:85px;">
+                <input type="text" id="complainantPassportPlace" style="left:705px; bottom:472px; width:110px;">
+                <input type="text" id="complainantOccupation" style="left:270px; bottom:438px; width:545px;">
+                <textarea id="complainantAddress" style="left:240px; bottom:385px; width:575px; height:35px;"></textarea>
+                <textarea id="accusedDetails" style="left: 110px; bottom: 250px; width: 720px; height: 100px;"></textarea>
+                <textarea id="reportingDelay" style="left: 110px; bottom: 164px; width: 720px; height: 50px;"></textarea>
+                <textarea id="stolenProperties" style="left: 110px; bottom: 78px; width: 720px; height: 50px;"></textarea>
+            </form>
+        </div>
+    </div>
+
+    <div class="page-container">
+        <div class="page" style="width: 909px; height: 1286px;">
+            <div id="pg2" style="-webkit-user-select: none;">
+                <div class="text-container">
+                    <span class="t s0" style="left:780px;bottom:1226px;">I.I.F.-I</span>
+                    <span class="t s2" style="left:110px;bottom:1210px;">10. Total value of property stolen (चोरी हुई संपत्ति का कुल मूल्य)</span>
+                    <span class="t s2" style="left:110px;bottom:1176px;">11. Inquest Report / U.D. case No., if any (मृत्यु समीक्षा रिपोर्ट / यू.डी. प्रकरण सं., यदि कोई हो)</span>
+                    <span class="t s2" style="left:110px;bottom:1141px;">12. First Information contents (प्रथम सूचना का विवरण)</span>
+                    <span class="t s2" style="left:110px;bottom:607px;">13. Action taken (की गई कार्रवाई): Since the above information reveals commission of offence(s) u/s as mentioned at Item No. 2.</span>
+                    <span class="t s2" style="left:165px;bottom:589px;">(1) Registered the case and took up the investigation (मामला दर्ज किया और जांच शुरू की)</span>
+                    <span class="t s2" style="left:165px;bottom:555px;">(2) Directed (Name of I.O.) (निर्देशित (जांच अधिकारी का नाम))</span><span class="t s2" style="left:546px;bottom:555px;">Rank (पद)</span><span class="t s2" style="left:670px;bottom:555px;">No. (सं.)</span>
+                    <span class="t s2" style="left:165px;bottom:520px;">(3) Refused investigation due to (जांच से इनकार का कारण)</span>
+                    <span class="t s2" style="left:165px;bottom:485px;">(4) Transferred to P.S. (थाना स्थानांतरित)</span><span class="t s2" style="left:480px;bottom:485px;">District (जिला)</span><span class="t s2" style="left:640px;bottom:485px;">on point of jurisdiction.</span>
+                    <span class="t s2" style="left:165px;bottom:434px;">F.I.R. read over to the complainant / informant, admitted to be correctly recorded and a copy given to the complainant /informant, free of cost.</span>
+                    <span class="t s1" style="left:541px;bottom:279px;">Signature of Officer in charge, Police Station (थाना प्रभारी के हस्ताक्षर)</span>
+                    <span class="t s1" style="left:539px;bottom:244px;">Name (नाम)</span>
+                    <span class="t s2" style="left:110px;bottom:227px;">14. Signature / Thumb impression of the complainant / informant (शिकायतकर्ता/सूचनाकर्ता के हस्ताक्षर/अंगूठे का निशान)</span>
+                    <span class="t s1" style="left:536px;bottom:192px;">Rank (पद)</span><span class="t s1" style="left:715px;bottom:192px;">No. (सं.)</span>
+                    <span class="t s2" style="left:110px;bottom:158px;">15. Date and time of despatch to the court (न्यायालय में भेजने की तिथि और समय)</span>
+                </div>
+            </div>
+
+            <form id="firFormP2" class="editable-form">
+                <input type="text" id="stolenValue" style="left:460px; bottom:1206px; width:355px;">
+                <input type="text" id="inquestReportNo" style="left:500px; bottom:1172px; width:315px;">
+                <textarea id="firContents" style="left:110px; bottom:630px; width:720px; height:500px;"></textarea>
+                <div class="radio-group" style="left:140px; bottom:460px; height: 150px; flex-direction: column; align-items: flex-start; justify-content: space-between;">
+                     <label><input type="radio" name="actionTaken" value="investigate" style="margin-right:8px;"> (1)</label>
+                     <label><input type="radio" name="actionTaken" value="direct" style="margin-right:8px;"> (2)</label>
+                     <label><input type="radio" name="actionTaken" value="refuse" style="margin-right:8px;"> (3)</label>
+                     <label><input type="radio" name="actionTaken" value="transfer" style="margin-right:8px;"> (4)</label>
+                </div>
+                <input type="text" id="ioName" style="left:415px; bottom:551px; width:125px;">
+                <input type="text" id="ioRank" style="left:585px; bottom:551px; width:80px;">
+                <input type="text" id="ioNo" style="left:705px; bottom:551px; width:100px;">
+                <input type="text" id="refusalReason" style="left:415px; bottom:516px; width:390px;">
+                <input type="text" id="transferPs" style="left:330px; bottom:481px; width:145px;">
+                <input type="text" id="transferDistrict" style="left:535px; bottom:481px; width:100px;">
+                <input type="text" id="officerName" style="left:582px; bottom:240px; width:235px;">
+                <input type="text" id="officerRank" style="left:570px; bottom:188px; width:140px;">
+                <input type="text" id="officerNo" style="left:753px; bottom:188px; width:80px;">
+                <input type="text" id="despatchDateTime" style="left:470px; bottom:154px; width:340px;">
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Example function to populate the form with sample data
+        function fillFormData(data) {
+            // Page 1
+            document.getElementById('district').value = data.district || '';
+            document.getElementById('policeStation').value = data.policeStation || '';
+            document.getElementById('firYear').value = data.year || '';
+            document.getElementById('firNo').value = data.firNo || '';
+            document.getElementById('firDate').value = data.firDate || '';
+            
+            document.getElementById('complainantName').value = data.complainantName || '';
+            document.getElementById('complainantRelationName').value = data.complainantRelationName || '';
+            document.getElementById('complainantAddress').value = data.complainantAddress || '';
+            
+            // Page 2
+            document.getElementById('firContents').value = data.firContents || '';
+            document.getElementById('officerName').value = data.officerName || '';
+            document.getElementById('officerRank').value = data.officerRank || '';
+        }
+
+        // Example Data Object
+        const sampleData = {
+            district: 'Gurugram',
+            policeStation: 'Cyber City',
+            year: '2025',
+            firNo: '00123',
+            firDate: '2025-09-18',
+            complainantName: 'Aarav Singh',
+            complainantRelationName: 'Rajesh Singh',
+            complainantAddress: '456 IT Tower, Udyog Vihar, Gurugram, Haryana',
+            firContents: 'Details of the incident go here. On the aforementioned date, at approximately 10:00 PM, the following events occurred...',
+            officerName: 'Vikram Rathore',
+            officerRank: 'Inspector'
+        };
+
+        // Call the function when the window loads to fill the form
+        window.onload = function() {
+            fillFormData(sampleData);
+        };
+    </script>
+
+</body>
+
+</html>
