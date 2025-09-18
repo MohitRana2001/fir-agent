@@ -1,108 +1,32 @@
 const sessionId = Math.random().toString().substring(10);
-const sse_url = "http://" + window.location.host + "/events/" + sessionId;
-const send_url = "http://" + window.location.host + "/send/" + sessionId;
-const upload_url = "http://" + window.location.host + "/upload/" + sessionId; // New upload URL
-let eventSource = null;
-let is_audio = false;
-
-// Get DOM elements
+const upload_url = "http://" + window.location.host + "/upload/" + sessionId;
 const messageForm = document.getElementById("messageForm");
 const messageInput = document.getElementById("message");
 const messagesDiv = document.getElementById("messages");
-const attachmentButton = document.getElementById("attachmentButton"); // New
-const fileInput = document.getElementById("fileInput"); // New
-let currentMessageId = null;
+const attachmentButton = document.getElementById("attachmentButton");
+const fileInput = document.getElementById("fileInput");
+let is_audio;
+document.getElementById("sendButton").disabled = false;
+addSubmitHandler();
 
-// SSE handlers
-function connectSSE() {
-  // Connect to SSE endpoint
-  eventSource = new EventSource(sse_url + "?is_audio=" + is_audio);
-
-  // Handle connection open
-  eventSource.onopen = function () {
-    console.log("SSE connection opened.");
-    messagesDiv.innerHTML = "";
-    document.getElementById("sendButton").disabled = false;
-    addSubmitHandler();
-  };
-
-  // Handle incoming messages
-  eventSource.onmessage = function (event) {
-    const message_from_server = JSON.parse(event.data);
-    console.log("[AGENT TO CLIENT] ", message_from_server);
-
-    
-
-    if (message_from_server.turn_complete && message_from_server.turn_complete == true) {
-      currentMessageId = null;
-      return;
-    }
-
-    if (message_from_server.interrupted && message_from_server.interrupted === true) {
-      if (audioPlayerNode) {
-        audioPlayerNode.port.postMessage({ command: "endOfAudio" });
-      }
-      return;
-    }
-
-    if (message_from_server.mime_type == "audio/pcm" && audioPlayerNode) {
-      audioPlayerNode.port.postMessage(base64ToArray(message_from_server.data));
-    }
-
-    if (message_from_server.mime_type == "text/plain") {
-      if (currentMessageId == null) {
-        currentMessageId = Math.random().toString(36).substring(7);
-        const message = document.createElement("p");
-        message.id = currentMessageId;
-        messagesDiv.appendChild(message);
-      }
-      const message = document.getElementById(currentMessageId);
-      message.textContent += message_from_server.data;
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-  };
-
-  // Handle connection close
-  eventSource.onerror = function (event) {
-    console.log("SSE connection error or closed.");
-    document.getElementById("sendButton").disabled = true;
-    const p = document.createElement("p");
-    p.className = 'system-message';
-    p.textContent = "Connection closed. Reconnecting...";
-    messagesDiv.appendChild(p);
-    eventSource.close();
-    setTimeout(function () {
-      console.log("Reconnecting...");
-      connectSSE();
-    }, 5000);
-  };
-}
-connectSSE();
-
-// Add submit handler to the form
 function addSubmitHandler() {
   messageForm.onsubmit = function (e) {
     e.preventDefault();
     const message = messageInput.value;
     if (message) {
       const p = document.createElement("p");
-      // Display user message with the new style
       p.className = "user-message";
       p.textContent = message;
       messagesDiv.appendChild(p);
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
       messageInput.value = "";
-      sendMessage({
-        mime_type: "text/plain",
-        data: message,
-      });
+      chatMessage(message);
       console.log("[CLIENT TO AGENT] " + message);
     }
     return false;
   };
 }
 
-// 1. FILE UPLOAD LOGIC
 attachmentButton.addEventListener("click", () => {
   fileInput.click();
 });
@@ -112,7 +36,6 @@ fileInput.addEventListener("change", (event) => {
   if (file) {
     uploadFile(file);
   }
-  // Reset file input to allow uploading the same file again
   fileInput.value = "";
 });
 
@@ -133,10 +56,17 @@ async function uploadFile(file) {
     });
     const result = await response.json();
     if (!response.ok) {
-      p.textContent = `Error uploading ${file.name}: ${result.detail || 'Server error'}`;
+      p.textContent = `Error uploading ${file.name}: ${
+        result.detail || "Server error"
+      }`;
     } else {
       p.textContent = `Successfully uploaded and parsed ${file.name}.`;
-      // The server will handle sending the parsed text into the conversation
+
+      if (result.parsed_content) {
+        await chatMessage(
+          `I have uploaded a document (${file.name}). Here is the content: ${result.parsed_content}`
+        );
+      }
     }
   } catch (error) {
     console.error("Error uploading file:", error);
@@ -144,33 +74,78 @@ async function uploadFile(file) {
   }
 }
 
-// (The rest of the file: sendMessage, base64ToArray, Audio handling, etc. remains the same)
-// ... (keep the rest of your app.js code from the sendMessage function onwards) ...
-async function sendMessage(message) {
-  const isTextMessage = message.mime_type === "text/plain";
+async function chatMessage(text) {
   const sendButton = document.getElementById("sendButton");
-
-  if (isTextMessage) {
-    sendButton.disabled = true;
-  }
-
+  sendButton.disabled = true;
   try {
-    const response = await fetch(send_url, {
+    const resp = await fetch(`http://${window.location.host}/chat`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(message),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text }),
     });
+    const result = await resp.json();
+    const reply = document.createElement("div");
+    reply.className = "agent-message";
 
-    if (!response.ok) {
-      console.error("Failed to send message:", response.statusText);
+    const formattedText = formatMarkdown(result.text || "[No response]");
+    reply.innerHTML = formattedText;
+
+    messagesDiv.appendChild(reply);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+    if (result.extracted_info) {
+      updateFormFields(result.extracted_info);
     }
-  } catch (error) {
-    console.error("Error sending message:", error);
+  } catch (e) {
+    const err = document.createElement("p");
+    err.className = "agent-message";
+    err.textContent = "Error contacting assistant";
+    messagesDiv.appendChild(err);
   } finally {
-    if (isTextMessage) {
-      sendButton.disabled = false;
+    sendButton.disabled = false;
+  }
+}
+
+function formatMarkdown(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(/^- (.*$)/gim, "<li>$1</li>")
+    .replace(/(<li>.*<\/li>)/s, "<ul>$1</ul>")
+    .replace(/\n\n/g, "</p><p>")
+    .replace(/\n/g, "<br>")
+    .replace(/^(.*)$/gim, "<p>$1</p>")
+    .replace(/<p><\/p>/g, "")
+    .replace(/<p>(<ul>.*<\/ul>)<\/p>/s, "$1");
+}
+
+function updateFormFields(extractedInfo) {
+  const fieldMapping = {
+    complainant_name: "complainant_name",
+    complainant_address: "complainant_address",
+    complainant_phone: "complainant_phone",
+    incident_date: "incident_date",
+    incident_location: "incident_location",
+    nature_of_complaint: "nature_of_complaint",
+    incident_description: "incident_description",
+    accused_details: "accused_details",
+    witnesses: "witnesses",
+    property_loss: "property_loss",
+    evidence_description: "evidence_description",
+  };
+
+  for (const [key, fieldId] of Object.entries(fieldMapping)) {
+    if (extractedInfo[key] && extractedInfo[key] !== "null") {
+      const field = document.getElementById(fieldId);
+      if (field && !field.value.trim()) {
+        field.value = extractedInfo[key];
+        field.style.backgroundColor = "#e8f5e8";
+
+        // Remove highlighting after 3 seconds
+        setTimeout(() => {
+          field.style.backgroundColor = "";
+        }, 3000);
+      }
     }
   }
 }
@@ -190,6 +165,8 @@ let audioPlayerContext;
 let audioRecorderNode;
 let audioRecorderContext;
 let micStream;
+let mediaRecorder;
+let mediaChunks = [];
 let audioBuffer = [];
 let bufferTimer = null;
 import { startAudioPlayerWorklet } from "./audio-player.js";
@@ -212,27 +189,103 @@ function startAudio() {
 const startAudioButton = document.getElementById("startAudioButton");
 const stopAudioButton = document.getElementById("stopAudioButton");
 
-startAudioButton.addEventListener("click", () => {
+startAudioButton.addEventListener("click", async () => {
   startAudioButton.disabled = true;
   stopAudioButton.disabled = false;
-  startAudio();
   is_audio = true;
-  eventSource.close(); 
-  connectSSE(); 
+
+  try {
+    const getCleanMic = () =>
+      navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          sampleRate: 48000,
+        },
+      });
+    micStream = await getCleanMic();
+
+    function pickBestMime() {
+      const mimes = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4;codecs=mp4a.40.2",
+        "audio/mp4",
+      ];
+      return mimes.find((m) => MediaRecorder.isTypeSupported(m)) || "";
+    }
+    const mimeType = pickBestMime();
+    const options = {};
+    if (mimeType) options.mimeType = mimeType;
+    options.audioBitsPerSecond = 128000;
+    mediaRecorder = new MediaRecorder(micStream, options);
+    mediaChunks = [];
+    mediaRecorder = new MediaRecorder(micStream, { mimeType });
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) mediaChunks.push(e.data);
+    };
+    mediaRecorder.start();
+  } catch (err) {
+    console.error("Failed to start recording:", err);
+    startAudioButton.disabled = false;
+    stopAudioButton.disabled = true;
+    is_audio = false;
+  }
 });
 
 stopAudioButton.addEventListener("click", () => {
   startAudioButton.disabled = false;
   stopAudioButton.disabled = true;
-  stopAudioRecording();
-  micStream.getTracks().forEach(track => track.stop());
   is_audio = false;
-  eventSource.close(); 
-  connectSSE(); 
+
   const p = document.createElement("p");
-  p.className = 'system-message'; // Use system message style
-  p.textContent = "Transcribing final audio...";
+  p.className = "system-message";
+  p.textContent = "Processing audio for transcription...";
   messagesDiv.appendChild(p);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+  try {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.onstop = async () => {
+        try {
+          const mime = mediaRecorder.mimeType || "audio/webm";
+          const blob = new Blob(mediaChunks, { type: mime });
+
+          const audioUrl = URL.createObjectURL(blob);
+          const audioPlayerDiv = document.createElement("div");
+          audioPlayerDiv.className = "audio-message";
+          audioPlayerDiv.innerHTML = `
+            <div class="audio-controls">
+              <span class="audio-label">🎵 Your Recording</span>
+              <audio controls>
+                <source src="${audioUrl}" type="${mime}">
+                Your browser does not support the audio element.
+              </audio>
+            </div>
+          `;
+          messagesDiv.appendChild(audioPlayerDiv);
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+          await uploadAudioForTranscription(blob);
+        } catch (e) {
+          console.error("Failed to build/upload blob:", e);
+        } finally {
+          mediaChunks = [];
+        }
+      };
+      mediaRecorder.stop();
+    }
+  } catch (e) {
+    console.error("Error stopping recorder:", e);
+  }
+
+  try {
+    if (micStream) {
+      micStream.getTracks().forEach((track) => track.stop());
+    }
+  } catch {}
 });
 
 function audioRecorderHandler(pcmData) {
@@ -256,12 +309,7 @@ function sendBufferedAudio() {
     combinedBuffer.set(chunk, offset);
     offset += chunk.length;
   }
-  sendMessage({
-    mime_type: "audio/pcm",
-    data: arrayBufferToBase64(combinedBuffer.buffer),
-  });
-  console.log("[CLIENT TO AGENT] sent %s bytes", combinedBuffer.byteLength);
-  audioBuffer = [];
+  audioBuffer = [combinedBuffer];
 }
 
 function stopAudioRecording() {
@@ -269,8 +317,101 @@ function stopAudioRecording() {
     clearInterval(bufferTimer);
     bufferTimer = null;
   }
-  if (audioBuffer.length > 0) {
-    sendBufferedAudio();
+}
+
+function processRecordedAudio() {
+  if (audioBuffer.length === 0) {
+    const p = document.createElement("p");
+    p.className = "system-message";
+    p.textContent = "No audio captured.";
+    messagesDiv.appendChild(p);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    return;
+  }
+
+  let totalLength = 0;
+  for (const chunk of audioBuffer) {
+    totalLength += chunk.length;
+  }
+  const combined = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of audioBuffer) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  const wavBlob = pcmToWav(combined, 16000, 1);
+  uploadAudioForTranscription(wavBlob);
+  audioBuffer = [];
+}
+
+async function uploadAudioForTranscription(audioBlob) {
+  const formData = new FormData();
+  formData.append("audio_file", audioBlob, "recorded_audio.wav");
+  try {
+    const resp = await fetch(
+      `http://${window.location.host}/transcribe_audio`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+    const result = await resp.json();
+    const p = document.createElement("p");
+    p.className = "system-message";
+    if (result.success) {
+      p.textContent = "✅ Audio transcribed successfully";
+      messagesDiv.appendChild(p);
+
+      if (result.transcription && result.transcription.trim()) {
+        await chatMessage(`[Audio Recording] ${result.transcription}`);
+      }
+    } else {
+      p.textContent = `❌ Transcription failed: ${
+        result.message || "Unknown error"
+      }`;
+      messagesDiv.appendChild(p);
+    }
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  } catch (e) {
+    const p = document.createElement("p");
+    p.className = "system-message";
+    p.textContent = "❌ Failed to upload audio for transcription.";
+    messagesDiv.appendChild(p);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+}
+
+function pcmToWav(pcmBytes, sampleRate, numChannels) {
+  const bytesPerSample = 2;
+  const blockAlign = numChannels * bytesPerSample;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = pcmBytes.length;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  writeString(view, 0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(view, 8, "WAVE");
+  writeString(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bytesPerSample * 8, true);
+  writeString(view, 36, "data");
+  view.setUint32(40, dataSize, true);
+
+  const out = new Uint8Array(buffer, 44);
+  out.set(pcmBytes);
+  return new Blob([buffer], { type: "audio/wav" });
+}
+
+function writeString(view, offset, string) {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
 
@@ -283,3 +424,87 @@ function arrayBufferToBase64(buffer) {
   }
   return window.btoa(binary);
 }
+
+const firFormButton = document.getElementById("firFormButton");
+const firFormModal = document.getElementById("firFormModal");
+const closeFirForm = document.getElementById("closeFirForm");
+const cancelFirForm = document.getElementById("cancelFirForm");
+const firForm = document.getElementById("firForm");
+
+firFormButton.addEventListener("click", async () => {
+  firFormModal.classList.remove("hidden");
+
+  try {
+    const resp = await fetch(
+      `http://${window.location.host}/get_extracted_info`
+    );
+    const result = await resp.json();
+    if (result.extracted_info) {
+      updateFormFields(result.extracted_info);
+    }
+  } catch (e) {
+    console.log("No extracted info available yet");
+  }
+});
+
+function hideFirForm() {
+  firFormModal.classList.add("hidden");
+}
+
+closeFirForm.addEventListener("click", hideFirForm);
+cancelFirForm.addEventListener("click", hideFirForm);
+
+firFormModal.addEventListener("click", (e) => {
+  if (e.target === firFormModal) {
+    hideFirForm();
+  }
+});
+
+firForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const formData = new FormData(firForm);
+  const firData = {};
+
+  for (let [key, value] of formData.entries()) {
+    firData[key] = value;
+  }
+
+  const submitButton = document.getElementById("submitFirForm");
+  const originalText = submitButton.textContent;
+  submitButton.textContent = "Submitting...";
+  submitButton.disabled = true;
+
+  try {
+    const response = await fetch(`http://${window.location.host}/submit_fir`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(firData),
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      const successMsg = document.createElement("p");
+      successMsg.className = "system-message";
+      successMsg.textContent =
+        "✅ FIR submitted successfully! The authorities will be in touch.";
+      messagesDiv.appendChild(successMsg);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+      hideFirForm();
+
+      firForm.reset();
+    } else {
+      alert(`Failed to submit FIR: ${result.message || "Unknown error"}`);
+    }
+  } catch (error) {
+    console.error("Error submitting FIR:", error);
+    alert("Failed to submit FIR. Please try again.");
+  } finally {
+    submitButton.textContent = originalText;
+    submitButton.disabled = false;
+  }
+});

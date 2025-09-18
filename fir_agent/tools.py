@@ -1,57 +1,70 @@
 import json
 import os
-import textract
+from pathlib import Path
 from google import genai
-from google.genai.types import GenerateContentConfig, Part
+from google.genai.types import GenerateContentConfig
 from dotenv import load_dotenv
+from PyPDF2 import PdfReader
+import docx
+from google.cloud import storage
+import uuid
+from datetime import datetime
 
 load_dotenv()
 
 def parse_document(file_path: str) -> str:
-    """
-    Parses a document (PDF, DOCX, DOC) and returns the text content.
-
-    Args:
-        file_path (str): The path to the document file.
-
-    Returns:
-        str: The text content of the document.
-    """
+    """Parses a document (PDF or DOCX) and returns the text content without textract."""
     if not os.path.exists(file_path):
         return f"Error: File not found at {file_path}"
 
     try:
-        text_bytes = textract.process(file_path)
-        text = text_bytes.decode('utf-8', errors='ignore')
-        if not text.strip():
-            return "Error: Could not extract any text from the document. It might be empty or an image-based file."
-        return text
-    except textract.exceptions.ExtensionNotSupported:
-        return "Error: Unsupported file type. Please upload a PDF, DOCX, or DOC file."
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext == ".pdf":
+            text_parts = []
+            with open(file_path, "rb") as f:
+                reader = PdfReader(f)
+                for page in reader.pages:
+                    page_text = page.extract_text() or ""
+                    if page_text:
+                        text_parts.append(page_text)
+            text = "\n".join(text_parts).strip()
+            if not text:
+                return "Error: Could not extract any text from the PDF. It might be scanned images."
+            return text
+        elif ext == ".docx":
+            document = docx.Document(file_path)
+            text = "\n".join(p.text for p in document.paragraphs).strip()
+            if not text:
+                return "Error: Could not extract any text from the DOCX."
+            return text
+        else:
+            return "Error: Unsupported file type. Please upload a PDF or DOCX file."
     except Exception as e:
         return f"Error parsing document: {e}"
 
 def transcribe_audio_file(file_path: str) -> str:
-    """Transcribes an audio file and returns the text."""
+    """Transcribes an audio file and returns the text using Gemini file upload API."""
     try:
-        client = genai.Client()
+        client = genai.Client(api_key=os.getenv('GOOGLE_API_KEY'))
         print(f"Transcribing audio file: {file_path}")
 
-        with open(file_path, "rb") as f:
-            audio_bytes = f.read()
+        uploaded_file = client.files.upload(file=Path(file_path))
 
-        audio_file_part = Part.from_data(data=audio_bytes, mime_type="audio/pcm")
-
-        prompt = "Transcribe this audio recording of a complainant giving a statement for a First Information Report (FIR)."
+        prompt = (
+            "Summarize this audio interview for FIR context. "
+        )
 
         response = client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=[
-                prompt,
-                audio_file_part,
-            ],
+            contents=[prompt, uploaded_file],
         )
-        
+
+        # Optional: clean up uploaded file handle on server side
+        try:
+            client.files.delete(name=uploaded_file.name)
+        except Exception:
+            pass
+
         print("Transcription successful.")
         return response.text
     except Exception as e:
@@ -97,3 +110,35 @@ def validate_data(
         return "All required information has been provided."
     else:
         return f"The following information is missing: {', '.join(missing_fields)}"
+
+def upload_fir_to_gcp(fir_data: dict) -> str:
+    """Uploads FIR data to Google Cloud Storage bucket."""
+    try:
+        # Initialize GCP Storage client
+        client = storage.Client()
+        bucket_name = os.getenv('GCP_BUCKET_NAME', 'fir-submissions')
+        bucket = client.bucket(bucket_name)
+        
+        # Generate unique filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        fir_id = str(uuid.uuid4())[:8]
+        filename = f"fir_{timestamp}_{fir_id}.json"
+        
+        # Add metadata
+        fir_data['submission_id'] = fir_id
+        fir_data['submitted_at'] = datetime.now().isoformat()
+        fir_data['status'] = 'submitted'
+        
+        # Upload to GCP
+        blob = bucket.blob(filename)
+        blob.upload_from_string(
+            json.dumps(fir_data, indent=2),
+            content_type='application/json'
+        )
+        
+        print(f"FIR uploaded successfully: {filename}")
+        return f"Success: FIR uploaded with ID {fir_id}"
+        
+    except Exception as e:
+        print(f"Error uploading to GCP: {e}")
+        return f"Error: Failed to upload FIR - {str(e)}"
