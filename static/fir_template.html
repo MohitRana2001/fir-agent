@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NCRB F.I.R. Form</title>
+    <style>
+        body {
+            background-color: transparent;
+            padding: 0;
+            margin: 0;
+            min-width: fit-content;
+            font-family: sans-serif;
+        }
+
+        .page-container {
+            margin: 0px auto;
+            width: fit-content;
+            background-color: white;
+        }
+
+        .page {
+            overflow: hidden;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .t {
+            z-index: 2;
+            white-space: pre;
+            overflow: visible;
+            line-height: 1.5;
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        .s0 {
+            font-size: 16px;
+            font-weight: bold;
+            color: #000;
+        }
+
+        .s1 {
+            font-size: 13px;
+            font-weight: 700px;
+            color: #000;
+        }
+
+        .branding {
+            display: flex;
+            flex-direction: column;
+            align-items: end;
+            justify-content: end;
+            margin: 10px;
+        }
+        .branding span:first-child {
+            border-bottom: 2px solid #000;
+            padding-bottom: 4px;
+            margin-bottom: 4px;
+        }
+
+        .heading {
+            display: flex;
+            flex-direction: column;
+            text-align: center;
+        }
+        .heading span:first-child {
+            text-decoration: underline;
+            text-decoration-thickness: 2px;
+            text-underline-offset: 6px;
+        }
+
+        ol {
+            list-style-position: outside;
+            padding-left: 2em;
+            margin: 0;
+        }
+
+        /* li>ol {
+            list-style-type: none;
+            padding-left: 0;
+        } */
+
+        li ol {
+            padding-left: 2.5em;
+        }
+
+        li {
+            padding-bottom: 12px;
+        }
+
+        .form-row {
+            display: flex;
+            align-items: baseline;
+            gap: 1em;
+            margin: 16px 0px 0px 0px;
+        }
+
+        .fill-line {
+            flex-grow: 1;
+            border-bottom: 1px dotted #333;
+            position: relative;
+            bottom: -2px;
+        }
+
+        .fill-line.wide {
+            flex-grow: 3;
+        }
+
+        .contents {
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 2em;
+        }
+
+        .left-col {
+            width: 50%;
+        }
+
+        .right-col {
+            width: 45%;
+            text-align: right;
+        }
+
+        .signature-block span {
+            display: block;
+            margin-bottom: 2em;
+        }
+
+        .form-footer {
+            text-align: center;
+            margin-top: 3em;
+            display: flex;
+            align-items: end;
+            justify-content: center;
+        }
+
+        .static-text {
+            margin-left: auto;
+            padding-left: 1em;
+        }
+
+        .fill-input, .fill-textarea {
+            flex-grow: 1;
+            background-color: transparent;
+            border: none;
+            border-bottom: 1px dotted #333;
+            outline: none;
+            font-family: inherit;
+            font-size: 18px;
+            padding: 2px 0;
+            line-height: 1.5;
+        }
+
+        .fill-textarea {
+            width: 100%;
+            resize: none;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .fill-input:focus, .fill-textarea:focus {
+            border-bottom: 1px solid #000;
+        }
+    </style>
+</head>
+
+
+<body>
+    <div class="page-container">
+        <div class="page" style="width: 960px; height: 1286px;">
+            <div class="pg1">
+                <div class="branding">
+                    <span class="s0 t">N.C.R.B. (एन.सी.आर.बी.)</span>
+                    <span class="s0 t">I.I.F.-I (आई.आई.एफ.-I)</span>
+                </div>
+
+                <div class="heading">
+                    <span class="t s0">FIRST INFORMATION REPORT (प्रथम सूचना रिपोर्ट)</span>
+                    <span class="t s1">(Under Section 154 Cr.P.C.)</span>
+                </div>
+
+                <form class="contents">
+                    <ol>
+                        <li>
+                            <div class="form-row">
+                                <span class="t s1">District (जिला)</span><input type="text" id="district" class="fill-input">
+                                <span class="t s1">P.S. (थाना)</span><input type="text" id="policeStation" class="fill-input">
+                                <span class="t s1">Year (वर्ष)</span><input type="text" id="firYear" class="fill-input">
+                                <span class="t s1">FIR No. (प्रा.सं.)</span><input type="text" id="firNo" class="fill-input">
+                                <span class="t s1">Date (दिनांक)</span><input type="text" id="firDate" class="fill-input">
+                            </div>
+                        </li>
+
+                        <li>
+                            <ol type="i">
+                                <li><div class="form-row"><span class="t s1">Act (अधिनियम)</span><input type="text" id="act1" class="fill-input"><span class="t s1">Sections (धाराएं)</span><input type="text" id="sections1" class="fill-input"></div></li>
+                                <li><div class="form-row"><span class="t s1">Act (अधिनियम)</span><input type="text" id="act2" class="fill-input"><span class="t s1">Sections (धाराएं)</span><input type="text" id="sections2" class="fill-input"></div></li>
+                                <li><div class="form-row"><span class="t s1">Act (अधिनियम)</span><input type="text" id="act3" class="fill-input"><span class="t s1">Sections (धाराएं)</span><input type="text" id="sections3" class="fill-input"></div></li>
+                                <li><div class="form-row"><span class="t s1">Other Acts & Sections (अन्य अधिनियम और धाराएं)</span><input type="text" id="otherActs" class="fill-input wide"></div></li>
+                            </ol>
+                        </li>
+
+                        <li>
+                            <ol type="a">
+                                <li>
+                                    <div class="form-row">
+                                        <span class="t s1">Occurrence of offence (अपराध की घटना): Day (दिन)</span><input type="text" id="offenceDay" class="fill-input">
+                                        <span class="t s1">Date from (दिनांक से)</span><input type="text" id="offenceDateFrom" class="fill-input">
+                                        <span class="t s1">Date to (दिनांक तक)</span><input type="text" id="offenceDateTo" class="fill-input">
+                                    </div>
+                                    <div class="form-row">
+                                        <span class="t s1">Time Period (समयावधि)</span><input type="text" id="offenceTimePeriod" class="fill-input">
+                                        <span class="t s1">Time from (समय से)</span><input type="text" id="offenceTimeFrom" class="fill-input">
+                                        <span class="t s1">Time to (समय तक)</span><input type="text" id="offenceTimeTo" class="fill-input">
+                                    </div>
+                                </li>
+                                <li>
+                                    <div class="form-row">
+                                        <span class="t s1">Information received at P.S. (थाने में सूचना): Date (दिनांक)</span><input type="text" id="psReceiptDate" class="fill-input">
+                                        <span class="t s1">Time (समय)</span><input type="text" id="psReceiptTime" class="fill-input">
+                                    </div>
+                                </li>
+                                <li>
+                                    <div class="form-row">
+                                        <span class="t s1">General Diary Reference (रोजनामचा संदर्भ): Entry No. (प्रविष्टि सं.)</span><input type="text" id="gdEntryNo" class="fill-input">
+                                        <span class="t s1">Time (समय)</span><input type="text" id="gdEntryTime" class="fill-input">
+                                    </div>
+                                </li>
+                            </ol>
+                        </li>
+
+                        <li>
+                            <div class="form-row">
+                                <span class="t s1">Type of Information (सूचना का प्रकार):</span><input type="text" id="infoType" class="fill-input">
+                            </div>
+                        </li>
+
+                        <li>
+                            <ol type="a">
+                                <li><div class="form-row"><span class="t s1">Place of Occurrence (घटना स्थल): (a) Direction and distance from P.S. (थाने से दिशा और दूरी)</span><input type="text" id="occurrenceDirectionDistance" class="fill-input"><span class="t s1">Beat No. (बीट सं.)</span><input type="text" id="beatNo" class="fill-input"></div></li>
+                                <li><div class="form-row"><span class="t s1">Address (पता)</span><input type="text" id="occurrenceAddress" class="fill-input"></div></li>
+                                <li><span>In case, outside the limit of this Police Station, then (यदि थाना क्षेत्र के बाहर है, तो)</span><div class="form-row"><span class="t s1">Name of P.S. (थाने का नाम)</span><input type="text" id="outsidePsName" class="fill-input"><span class="t s1">District (जिला)</span><input type="text" id="outsideDistrict" class="fill-input"></div></li>
+                            </ol>
+                        </li>
+
+                        <li>
+                            <span class="t s1">Complainant / Informant (शिकायतकर्ता / सूचनाकर्ता):</span>
+                            <ol type="a">
+                                <li><div class="form-row"><span class="t s1">Name</span><input type="text" id="complainantName" class="fill-input"></div></li>
+                                <li><div class="form-row"><span class="t s1">Father's/Husband's Name</span><input type="text" id="complainantRelationName" class="fill-input"></div></li>
+                                <li><div class="form-row"><span class="t s1">Date/Year of Birth</span><input type="text" id="complainantDob" class="fill-input"><span class="t s1">(d) Nationality</span><input type="text" id="complainantNationality" class="fill-input"></div></li>
+                                <li><div class="form-row"><span class="t s1">Passport No.</span><input type="text" id="complainantPassportNo" class="fill-input"><span class="t s1">Date of Issue</span><input type="text" id="complainantPassportDate" class="fill-input"><span class="t s1">Place of Issue</span><input type="text" id="complainantPassportPlace" class="fill-input"></div></li>
+                                <li><div class="form-row"><span class="t s1">Occupation</span><input type="text" id="complainantOccupation" class="fill-input"></div></li>
+                                <li><div class="form-row"><span class="t s1">Address</span><input type="text" id="complainantAddress" class="fill-input"></div></li>
+                            </ol>
+                        </li>
+
+                        <li>
+                            <span class="t s1">Details of known/suspected/unknown accused...</span>
+                            <textarea id="accusedDetails" class="fill-textarea" rows="3"></textarea>
+                        </li>
+
+                        <li>
+                            <span class="t s1">Reasons for delay in reporting by the complainant...</span>
+                            <textarea id="reportingDelay" class="fill-textarea" rows="2"></textarea>
+                        </li>
+
+                        <li>
+                            <span class="t s1">Particulars of properties stolen...</span>
+                            <textarea id="stolenProperties" class="fill-textarea" rows="2"></textarea>
+                        </li>
+                    </ol>
+                    <div class="form-footer"><span>--- : 1/2 : ---</span></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-container">
+        <div class="page" style="width: 1240px; height: 1754px;">
+            <div class="pg2">
+                <div class="branding">
+                    <span class="s0 t">N.C.R.B. (एन.सी.आर.बी.)</span>
+                    <span class="s0 t">I.I.F.-I (आई.आई.एफ.-I)</span>
+                </div>
+
+                <form class="contents">
+                    <ol start="10">
+                        <li><div class="form-row"><span class="t s1">Total value of property stolen</span><input type="text" id="stolenValue" class="fill-input"></div></li>
+                        <li><div class="form-row"><span class="t s1">Inquest Report / U.D. case No., if any</span><input type="text" id="inquestReportNo" class="fill-input"></div></li>
+                        <li>
+                            <span class="t s1">First Information contents (Attach separate sheet, if required)</span>
+                            <textarea id="firContents" class="fill-textarea" rows="4"></textarea>
+                        </li>
+                        <li>
+                            <span class="t s1">Action taken: Since the above information reveals commission of offence(s)...</span>
+                            <ol type="1">
+                                <li><div class="form-row"><input type="text" id="actionTaken" class="fill-input"></div></li>
+                                <li><div class="form-row"><span class="t s1">Directed (Name of I.O.)</span><input type="text" id="ioName" class="fill-input"><span class="t s1">Rank</span><input type="text" id="ioRank" class="fill-input"><span class="t s1">No.</span><input type="text" id="ioNo" class="fill-input"> to take up the Investigation or</div></li>
+                                <li><div class="form-row"><span class="t s1">Refused investigation due to</span><input type="text" id="refusalReason" class="fill-input"> or</div></li>
+                                <li><div class="form-row"><span class="t s1">Transferred to P.S.</span><input type="text" id="transferPs" class="fill-input"><span class="t s1">District (जिला)</span><input type="text" id="transferDistrict" class="fill-input"> on point of jurisdiction.</div></li>
+                            </ol>
+                            <p class="t s1">F.I.R. read over to the complainant / informant...</p>
+                        </li>
+                    </ol>
+
+                    <div class="signature-section">
+                        <div class="left-col">
+                            <ol start="14">
+                                <li><span>Signature / Thumb impression of the complainant...</span></li>
+                                <li><div class="form-row"><span>Date and time of despatch to the court</span><input type="text" id="despatchDateTime" class="fill-input"></div></li>
+                            </ol>
+                        </div>
+                        <div class="right-col">
+                            <p><strong>R.O.A.C.</strong></p>
+                            <div class="signature-block">
+                                <span>Signature of Officer in charge, Police Station</span>
+                                <div class="form-row"><span>Name</span><input type="text" id="officerName" class="fill-input"></div>
+                                <div class="form-row"><span>Rank</span><input type="text" id="officerRank" class="fill-input"><span>No.</span><input type="text" id="officerNo" class="fill-input"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-footer"><span>--- : 2/2 : ---</span></div>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -10,6 +10,7 @@ import docx
 from google.cloud import storage
 import uuid
 from datetime import datetime
+from weasyprint import HTML
 
 load_dotenv()
 
@@ -101,7 +102,9 @@ def validate_data(
     Validates the user-provided details against the FIR template.
     """
     try:
-        with open("fir_template.json") as f:
+        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        template_path = os.path.join(app_dir, "fir_template.json")
+        with open(template_path) as f:
             template = json.load(f)
     except FileNotFoundError:
         return "Error: fir_template.json not found."
@@ -130,6 +133,12 @@ def validate_data(
 
 def upload_fir_to_gcp(fir_data: dict) -> str:
     """Uploads FIR data to Google Cloud Storage bucket."""
+    
+    pdf_file_path = create_fir_pdf_from_html(fir_data)
+    
+    if not pdf_file_path:
+        return "Error: Failed to create PDF from HTML template. Check server logs."
+    
     try:
         client = storage.Client()
         bucket_name = os.getenv('GCP_BUCKET_NAME', 'fir-submissions')
@@ -137,21 +146,47 @@ def upload_fir_to_gcp(fir_data: dict) -> str:
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         fir_id = str(uuid.uuid4())[:8]
-        filename = f"fir_{timestamp}_{fir_id}.json"
+        destination_blob_name = f"fir_{timestamp}_{fir_id}.pdf"
         
-        fir_data['submission_id'] = fir_id
-        fir_data['submitted_at'] = datetime.now().isoformat()
-        fir_data['status'] = 'submitted'
+        blob = bucket.blob(destination_blob_name)
         
-        blob = bucket.blob(filename)
-        blob.upload_from_string(
-            json.dumps(fir_data, indent=2),
-            content_type='application/json'
-        )
+        blob.upload_from_filename(pdf_file_path)
         
-        print(f"FIR uploaded successfully: {filename}")
-        return f"Success: FIR uploaded with ID {fir_id}"
+        print(f"FIR uploaded successfully: {destination_blob_name}")
+        return f"Success: FIR PDF uploaded with ID {fir_id}"
         
     except Exception as e:
         print(f"Error uploading to GCP: {e}")
         return f"Error: Failed to upload FIR - {str(e)}"
+    
+    finally:
+        if pdf_file_path and os.path.exists(pdf_file_path):
+            os.remove(pdf_file_path)
+
+def create_fir_pdf_from_html(fir_data: dict) -> str:
+    try:
+        
+        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
+        template_path = os.path.join(app_dir, 'static', "fir_template.html")
+        
+        print(f"Loading HTML template from: {template_path}")
+        
+        with open(template_path, 'r', encoding='utf-8') as f:
+            html_template = f.read()
+            
+        populated_html = html_template
+        for key, value in fir_data.items():
+            placeholder = f"{{{{{key}}}}}"
+            populated_html = populated_html.replace(placeholder, str(value or 'N/A'))
+            
+        html = HTML(string=populated_html, base_url=os.path.join(app_dir, 'static'))
+        temp_pdf_path = f"temp_fir_{uuid.uuid4()}.pdf"
+        html.write_pdf(temp_pdf_path)
+        print(f"Debug1 {temp_pdf_path}")
+        return temp_pdf_path
+    except Exception as e:
+        print(f"Error creating PDF from HTML: {e}")
+        return None
+    
+    

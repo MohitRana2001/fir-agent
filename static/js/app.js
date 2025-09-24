@@ -1,3 +1,4 @@
+// Test comment
 const sessionId = Math.random().toString().substring(10);
 const upload_url = "http://" + window.location.host + "/upload/" + sessionId;
 const messageForm = document.getElementById("messageForm");
@@ -93,9 +94,13 @@ async function chatMessage(text) {
     messagesDiv.appendChild(reply);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
-    if (result.extracted_info) {
-      updateFormFields(result.extracted_info);
+    if (!firFormModal.classList.contains("hidden")) {
+        if (result.extracted_info) {
+            updateFormFields(result.extracted_info);
+        }
     }
+
+    console.log("extracted_info",result);
   } catch (e) {
     const err = document.createElement("p");
     err.className = "agent-message";
@@ -119,51 +124,9 @@ function formatMarkdown(text) {
     .replace(/<p>(<ul>.*<\/ul>)<\/p>/s, "$1");
 }
 
-function updateFormFields(extractedInfo) {
-  const fieldMapping = {
-    complainant_name: "complainant_name",
-    complainant_address: "complainant_address",
-    complainant_phone: "complainant_phone",
-    incident_date: "incident_date",
-    incident_location: "incident_location",
-    nature_of_complaint: "nature_of_complaint",
-    incident_description: "incident_description",
-    accused_details: "accused_details",
-    witnesses: "witnesses",
-    property_loss: "property_loss",
-    evidence_description: "evidence_description",
-  };
-
-  for (const [key, fieldId] of Object.entries(fieldMapping)) {
-    if (extractedInfo[key] && extractedInfo[key] !== "null") {
-      const field = document.getElementById(fieldId);
-      if (field && !field.value.trim()) {
-        field.value = extractedInfo[key];
-        field.style.backgroundColor = "#e8f5e8";
-
-        // Remove highlighting after 3 seconds
-        setTimeout(() => {
-          field.style.backgroundColor = "";
-        }, 3000);
-      }
-    }
-  }
-}
-
-function base64ToArray(base64) {
-  const binaryString = window.atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
 let micStream;
 let mediaRecorder;
 let mediaChunks = [];
-
 const startAudioButton = document.getElementById("startAudioButton");
 const stopAudioButton = document.getElementById("stopAudioButton");
 
@@ -171,36 +134,12 @@ startAudioButton.addEventListener("click", async () => {
   startAudioButton.disabled = true;
   stopAudioButton.disabled = false;
   is_audio = true;
-
   try {
-    micStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        sampleRate: 16000, // More efficient sample rate for voice
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
-
-    const pickBestMime = () => {
-      const mimes = [
-        "audio/webm;codecs=opus",
-        "audio/webm",
-        "audio/mp4;codecs=mp4a.40.2",
-        "audio/mp4",
-      ];
-      return mimes.find((m) => MediaRecorder.isTypeSupported(m)) || "";
-    }
-    const mimeType = pickBestMime();
-    const options = { mimeType, audioBitsPerSecond: 128000 };
-    
-    mediaRecorder = new MediaRecorder(micStream, options);
-    mediaChunks = []; // Clear any previous chunks
-
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) mediaChunks.push(e.data);
-    };
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    const mimeType = "audio/webm;codecs=opus";
+    mediaRecorder = new MediaRecorder(micStream, { mimeType, audioBitsPerSecond: 128000 });
+    mediaChunks = [];
+    mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) mediaChunks.push(e.data); };
     mediaRecorder.start();
   } catch (err) {
     console.error("Failed to start recording:", err);
@@ -214,35 +153,16 @@ stopAudioButton.addEventListener("click", () => {
   startAudioButton.disabled = false;
   stopAudioButton.disabled = true;
   is_audio = false;
-
   const p = document.createElement("p");
   p.className = "system-message";
   p.textContent = "Processing audio for transcription...";
   messagesDiv.appendChild(p);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
   try {
     if (mediaRecorder && mediaRecorder.state !== "inactive") {
       mediaRecorder.onstop = async () => {
         try {
-          const mime = mediaRecorder.mimeType || "audio/webm";
-          const blob = new Blob(mediaChunks, { type: mime });
-
-          const audioUrl = URL.createObjectURL(blob);
-          const audioPlayerDiv = document.createElement("div");
-          audioPlayerDiv.className = "audio-message";
-          audioPlayerDiv.innerHTML = `
-            <div class="audio-controls">
-              <span class="audio-label">🎵 Your Recording</span>
-              <audio controls>
-                <source src="${audioUrl}" type="${mime}">
-                Your browser does not support the audio element.
-              </audio>
-            </div>
-          `;
-          messagesDiv.appendChild(audioPlayerDiv);
-          messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
+          const blob = new Blob(mediaChunks, { type: mediaRecorder.mimeType });
           await uploadAudioForTranscription(blob);
         } catch (e) {
           console.error("Failed to build/upload blob:", e);
@@ -255,68 +175,59 @@ stopAudioButton.addEventListener("click", () => {
   } catch (e) {
     console.error("Error stopping recorder:", e);
   }
-
-  try {
-    if (micStream) {
-      micStream.getTracks().forEach((track) => track.stop());
-    }
-  } catch {}
+  if (micStream) micStream.getTracks().forEach((track) => track.stop());
 });
 
 async function uploadAudioForTranscription(audioBlob) {
   const formData = new FormData();
-  formData.append("audio_file", audioBlob, "recorded_audio.wav");
+  formData.append("audio_file", audioBlob, "recorded_audio.webm");
   try {
-    const resp = await fetch(
-      `http://${window.location.host}/transcribe_audio`,
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
+    const resp = await fetch(`http://${window.location.host}/transcribe_audio`, { method: "POST", body: formData });
     const result = await resp.json();
     const p = document.createElement("p");
     p.className = "system-message";
     if (result.success) {
       p.textContent = "✅ Audio transcribed successfully";
       messagesDiv.appendChild(p);
-
       if (result.transcription && result.transcription.trim()) {
         await chatMessage(`[Audio Recording] ${result.transcription}`);
       }
     } else {
-      p.textContent = `Transcription failed: ${
-        result.message || "Unknown error"
-      }`;
+      p.textContent = `Transcription failed: ${result.message || "Unknown error"}`;
       messagesDiv.appendChild(p);
     }
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   } catch (e) {
-    const p = document.createElement("p");
-    p.className = "system-message";
-    p.textContent = "Failed to upload audio for transcription.";
-    messagesDiv.appendChild(p);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    console.error("Failed to upload audio:", e);
   }
 }
 
 const firFormButton = document.getElementById("firFormButton");
 const firFormModal = document.getElementById("firFormModal");
 const closeFirForm = document.getElementById("closeFirForm");
-const cancelFirForm = document.getElementById("cancelFirForm");
-const firForm = document.getElementById("firForm");
+const firFormContainer = document.getElementById("fir-form-container");
+let firFormLoaded = false;
 
 firFormButton.addEventListener("click", async () => {
-  firFormModal.classList.remove("hidden");
-
-  try {
-    const resp = await fetch(
-      `http://${window.location.host}/get_extracted_info`
-    );
-    const result = await resp.json();
-    if (result.extracted_info) {
-      updateFormFields(result.extracted_info);
+  if (!firFormLoaded) {
+    try {
+      const response = await fetch("/static/fir_template.html");
+      const formHtml = await response.text();
+      firFormContainer.innerHTML = formHtml;
+      firFormLoaded = true;
+      attachFormHandlers();
+    } catch (error) {
+      console.error("Failed to load FIR form:", error);
+      firFormContainer.innerHTML = "<p>Error loading form. Please try again.</p>";
     }
+  }
+  firFormModal.classList.remove("hidden");
+  try {
+    const resp = await fetch(`http://${window.location.host}/get_extracted_info`);
+    const result = await resp.json();
+    setTimeout(() => {
+        updateFormFields(result.extracted_info);
+      }, 0);
   } catch (e) {
     console.log("No extracted info available yet");
   }
@@ -327,7 +238,6 @@ function hideFirForm() {
 }
 
 closeFirForm.addEventListener("click", hideFirForm);
-cancelFirForm.addEventListener("click", hideFirForm);
 
 firFormModal.addEventListener("click", (e) => {
   if (e.target === firFormModal) {
@@ -335,51 +245,165 @@ firFormModal.addEventListener("click", (e) => {
   }
 });
 
-firForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const formData = new FormData(firForm);
-  const firData = {};
-
-  for (let [key, value] of formData.entries()) {
-    firData[key] = value;
-  }
-
-  const submitButton = document.getElementById("submitFirForm");
-  const originalText = submitButton.textContent;
-  submitButton.textContent = "Submitting...";
-  submitButton.disabled = true;
-
-  try {
-    const response = await fetch(`http://${window.location.host}/submit_fir`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(firData),
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      const successMsg = document.createElement("p");
-      successMsg.className = "system-message";
-      successMsg.textContent =
-        "✅ FIR submitted successfully! The authorities will be in touch.";
-      messagesDiv.appendChild(successMsg);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-      hideFirForm();
-
-      firForm.reset();
-    } else {
-      alert(`Failed to submit FIR: ${result.message || "Unknown error"}`);
+function updateFormFields(extractedInfo) {
+  if (!firFormLoaded) return;
+    
+  for (const key in extractedInfo) {
+    if (key !== 'acts') { 
+      const field = document.getElementById(key);
+      if (field && extractedInfo[key] && extractedInfo[key] !== "null") {
+        if (field.type === 'radio') {
+          const radio = document.querySelector(`input[name="${field.name}"][value="${extractedInfo[key]}"]`);
+          if (radio) radio.checked = true;
+        } else {
+          field.value = extractedInfo[key];
+        }
+      }
     }
-  } catch (error) {
-    console.error("Error submitting FIR:", error);
-    alert("Failed to submit FIR. Please try again.");
-  } finally {
-    submitButton.textContent = originalText;
-    submitButton.disabled = false;
   }
-});
+
+  if (extractedInfo.acts && Array.isArray(extractedInfo.acts)) {
+    const actsInputContainer = document.getElementById('actsInputContainer');
+    if (!actsInputContainer) {
+        console.error("actsInputContainer not found in the DOM");
+        return;
+    }
+    actsInputContainer.innerHTML = ''; 
+
+    if (extractedInfo.acts.length === 0) {
+      addActSectionRow();
+    } else {
+      extractedInfo.acts.forEach((actInfo) => {
+        addActSectionRow(actInfo.act, actInfo.sections);
+      });
+    }
+  }
+}
+
+function attachFormHandlers() {
+  const cancelFirForm = document.getElementById("cancelFirForm");
+  const submitFirFormButton = document.getElementById("submitFirForm");
+  const addActButton = document.getElementById('addActButton');
+  const firForm = firFormContainer.querySelector(".contents");
+  
+  if (cancelFirForm) {
+    cancelFirForm.addEventListener("click", hideFirForm);
+  }
+
+  if (addActButton) {
+    addActButton.addEventListener('click', () => addActSectionRow());
+  }
+  
+  const actsContainer = document.getElementById('actsInputContainer');
+  if (actsContainer && actsContainer.childElementCount === 0) {
+      addActSectionRow();
+  }
+
+  if (submitFirFormButton && firForm) {
+    submitFirFormButton.addEventListener('click', async () => {
+      // const formP1 = document.getElementById('firFormP1');
+      // const formP2 = document.getElementById('firFormP2');
+      
+      // if (!formP1 || !formP2) {
+      //   console.error("One or both form parts are missing!");
+      //   alert("Error: Form is not loaded correctly.");
+      //   return;
+      // }
+      
+      const formData = new FormData(firForm);
+      const firData = {};
+      formData.forEach((value, key) => {
+        firData[key] = value;
+      });
+
+      submitFirFormButton.textContent = "Submitting...";
+      submitFirFormButton.disabled = true;
+
+      // const infoType = formP1.querySelector('input[name="infoType"]:checked');
+      // if (infoType) firData.infoType = infoType.value;
+      
+      // const actionTaken = formP2.querySelector('input[name="actionTaken"]:checked');
+      // if (actionTaken) firData.actionTaken = actionTaken.value;
+
+      // firData.acts = [];
+      // const actInputs = formP1.querySelectorAll('input[name="act[]"]');
+      // const sectionInputs = formP1.querySelectorAll('input[name="sections[]"]');
+      // actInputs.forEach((actInput, index) => {
+      //     const sectionInput = sectionInputs[index];
+      //     if (actInput.value || sectionInput.value) {
+      //         firData.acts.push({
+      //             act: actInput.value,
+      //             sections: sectionInput.value
+      //         });
+      //     }
+      // });
+      // delete firData['act[]'];
+      // delete firData['sections[]'];
+
+      try {
+        const response = await fetch(`http://${window.location.host}/submit_fir`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(firData),
+        });
+        const result = await response.json();
+        if (result.success) {
+          alert("FIR submitted successfully!");
+          hideFirForm();
+          firForm.reset();
+        } else {
+          alert(`Failed to submit FIR: ${result.message || "Unknown error"}`);
+        }
+      } catch (error) {
+        console.error("Error submitting FIR:", error);
+        alert("Failed to submit FIR. Please try again.");
+      } finally {
+        submitFirFormButton.textContent = "Submit FIR";
+        submitFirFormButton.disabled = false;
+      }
+    });
+  }
+}
+
+function addActSectionRow(actValue = '', sectionsValue = '') {
+  const actsInputContainer = document.getElementById('actsInputContainer');
+  if (!actsInputContainer) return;
+
+  const rowCount = actsInputContainer.getElementsByClassName('act-group').length;
+  const newRow = document.createElement('div');
+  newRow.className = 'act-group';
+  newRow.style.marginBottom = '10px';
+  newRow.style.lineHeight = '24px';
+
+  newRow.innerHTML = `
+    <span style="display: inline-block; width: 270px; text-align: right; padding-right: 5px; font-size: 12px; font-family: 'Times New Roman', Times, serif;">(${String.fromCharCode(97 + rowCount)}) Act:</span>
+    <input type="text" name="act[]" placeholder="e.g., Indian Penal Code" style="position:static; width:180px;" value="${actValue}">
+    <span style="display: inline-block; width: 84px; text-align: right; padding-right: 5px; font-size: 12px; font-family: 'Times New Roman', Times, serif;">Sections:</span>
+    <input type="text" name="sections[]" placeholder="e.g., 302, 307" style="position:static; width:280px;" value="${sectionsValue}">
+  `;
+
+  if (rowCount > 0) {
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.className = 'dynamic-button remove-act-button';
+    removeButton.textContent = '- Remove';
+    removeButton.addEventListener('click', function() {
+      newRow.remove();
+      adjustBelowActsContainer();
+    });
+    newRow.appendChild(removeButton);
+  }
+
+  actsInputContainer.appendChild(newRow);
+  adjustBelowActsContainer();
+}
+
+function adjustBelowActsContainer() {
+    const actsInputContainer = document.getElementById('actsInputContainer');
+    const belowActsContainer = document.getElementById('below-acts-inputs-container');
+    if(actsInputContainer && belowActsContainer) {
+        const rowCount = actsInputContainer.getElementsByClassName('act-group').length;
+        const newTop = 298 + (rowCount * 34); 
+        belowActsContainer.style.top = `${newTop}px`;
+    }
+}

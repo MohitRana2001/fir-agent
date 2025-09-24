@@ -1,50 +1,202 @@
 {
   "required_fields": {
-    "complainant_name": {
+    "district": {
       "type": "string",
-      "description": "Full name of the person filing the complaint"
+      "description": "District name"
     },
-    "complainant_address": {
+    "policeStation": {
       "type": "string",
-      "description": "Complete address of the complainant"
+      "description": "Police station name"
     },
-    "complainant_phone": {
+    "firYear": {
       "type": "string",
-      "description": "Contact phone number of the complainant"
+      "description": "Year of the FIR"
     },
-    "incident_date": {
-      "type": "datetime",
-      "description": "Date and time when the incident occurred"
-    },
-    "incident_location": {
+    "firNo": {
       "type": "string",
-      "description": "Exact location where the incident took place"
+      "description": "FIR number"
     },
-    "incident_description": {
-      "type": "string",
-      "description": "Detailed description of the incident"
+    "firDate": {
+      "type": "date",
+      "description": "Date of FIR filing"
     },
-    "nature_of_complaint": {
+    "complainantName": {
       "type": "string",
-      "description": "Type of complaint (theft, assault, fraud, etc.)"
+      "description": "Full name of the complainant"
+    },
+    "complainantAddress": {
+      "type": "string",
+      "description": "Address of the complainant"
+    },
+    "firContents": {
+      "type": "string",
+      "description": "Detailed contents of the First Information"
     }
   },
   "optional_fields": {
-    "witnesses": {
+    "acts": {
       "type": "array",
-      "description": "List of witnesses with their names and contact information"
+      "description": "List of acts and their corresponding sections"
     },
-    "evidence_description": {
+    "otherActs": {
       "type": "string",
-      "description": "Description of any evidence related to the incident"
+      "description": "Other acts and sections"
     },
-    "accused_details": {
+    "offenceDay": {
       "type": "string",
-      "description": "Details about the accused person(s) if known"
+      "description": "Day of the offence"
     },
-    "property_loss": {
+    "offenceDateFrom": {
+      "type": "date",
+      "description": "Offence date from"
+    },
+    "offenceDateTo": {
+      "type": "date",
+      "description": "Offence date to"
+    },
+    "offenceTimePeriod": {
       "type": "string",
-      "description": "Details of any property lost or damaged"
+      "description": "Time period of the offence"
+    },
+    "offenceTimeFrom": {
+      "type": "time",
+      "description": "Offence time from"
+    },
+    "offenceTimeTo": {
+      "type": "time",
+      "description": "Offence time to"
+    },
+    "psReceiptDate": {
+      "type": "date",
+      "description": "Date information received at PS"
+    },
+    "psReceiptTime": {
+      "type": "time",
+      "description": "Time information received at PS"
+    },
+    "gdEntryNo": {
+      "type": "string",
+      "description": "General Diary reference number"
+    },
+    "gdEntryTime": {
+      "type": "time",
+      "description": "General Diary entry time"
+    },
+    "infoType": {
+      "type": "string",
+      "description": "Type of information (Written/Oral)"
+    },
+    "occurrenceDirectionDistance": {
+      "type": "string",
+      "description": "Direction and distance from PS"
+    },
+    "beatNo": {
+      "type": "string",
+      "description": "Beat number"
+    },
+    "occurrenceAddress": {
+      "type": "string",
+      "description": "Address of occurrence"
+    },
+    "outsidePsName": {
+      "type": "string",
+      "description": "Name of outside Police Station"
+    },
+    "outsideDistrict": {
+      "type": "string",
+      "description": "Name of outside District"
+    },
+    "complainantRelationName": {
+      "type": "string",
+      "description": "Complainant's father's or husband's name"
+    },
+    "complainantDob": {
+      "type": "string",
+      "description": "Complainant's date of birth"
+    },
+    "complainantNationality": {
+      "type": "string",
+      "description": "Complainant's nationality"
+    },
+    "complainantPassportNo": {
+      "type": "string",
+      "description": "Complainant's passport number"
+    },
+    "complainantPassportDate": {
+      "type": "string",
+      "description": "Passport issue date"
+    },
+    "complainantPassportPlace": {
+      "type": "string",
+      "description": "Passport issue place"
+    },
+    "complainantOccupation": {
+      "type": "string",
+      "description": "Complainant's occupation"
+    },
+    "accusedDetails": {
+      "type": "string",
+      "description": "Details of the accused"
+    },
+    "reportingDelay": {
+      "type": "string",
+      "description": "Reason for delay in reporting"
+    },
+    "stolenProperties": {
+      "type": "string",
+      "description": "Particulars of properties stolen"
+    },
+    "stolenValue": {
+      "type": "string",
+      "description": "Total value of property stolen"
+    },
+    "inquestReportNo": {
+      "type": "string",
+      "description": "Inquest Report / U.D. case number"
+    },
+    "actionTaken": {
+      "type": "string",
+      "description": "Action taken by police"
+    },
+    "ioName": {
+      "type": "string",
+      "description": "Name of the Investigating Officer"
+    },
+    "ioRank": {
+      "type": "string",
+      "description": "Rank of the I.O."
+    },
+    "ioNo": {
+      "type": "string",
+      "description": "Number of the I.O."
+    },
+    "refusalReason": {
+      "type": "string",
+      "description": "Reason for refusal of investigation"
+    },
+    "transferPs": {
+      "type": "string",
+      "description": "Transferred to Police Station"
+    },
+    "transferDistrict": {
+      "type": "string",
+      "description": "Transferred to District"
+    },
+    "officerName": {
+      "type": "string",
+      "description": "Name of the officer in charge"
+    },
+    "officerRank": {
+      "type": "string",
+      "description": "Rank of the officer in charge"
+    },
+    "officerNo": {
+      "type": "string",
+      "description": "Number of the officer in charge"
+    },
+    "despatchDateTime": {
+      "type": "string",
+      "description": "Date and time of despatch to court"
     }
   }
 }

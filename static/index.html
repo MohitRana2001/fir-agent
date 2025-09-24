@@ -145,11 +145,10 @@
       </form>
     </div>
 
-    <!-- FIR Form Modal -->
     <div id="firFormModal" class="modal hidden">
-      <div class="modal-content">
+      <div class="modal-content wide-modal">
         <div class="modal-header">
-          <h2>FIR Details Form</h2>
+          <h2>First Information Report (FIR)</h2>
           <button type="button" id="closeFirForm" class="close-button">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -168,132 +167,17 @@
           </button>
         </div>
 
-        <form id="firForm" class="fir-form">
-          <div class="form-section">
-            <h3>Complainant Details</h3>
-            <div class="form-group">
-              <label for="complainant_name">Full Name *</label>
-              <input
-                type="text"
-                id="complainant_name"
-                name="complainant_name"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label for="complainant_address">Address *</label>
-              <textarea
-                id="complainant_address"
-                name="complainant_address"
-                required
-                rows="3"
-              ></textarea>
-            </div>
-            <div class="form-group">
-              <label for="complainant_phone">Phone Number *</label>
-              <input
-                type="tel"
-                id="complainant_phone"
-                name="complainant_phone"
-                required
-              />
-            </div>
-          </div>
-
-          <div class="form-section">
-            <h3>Incident Details</h3>
-            <div class="form-group">
-              <label for="incident_date">Date & Time *</label>
-              <input
-                type="datetime-local"
-                id="incident_date"
-                name="incident_date"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label for="incident_location">Location *</label>
-              <input
-                type="text"
-                id="incident_location"
-                name="incident_location"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label for="nature_of_complaint">Nature of Complaint *</label>
-              <select
-                id="nature_of_complaint"
-                name="nature_of_complaint"
-                required
-              >
-                <option value="">Select complaint type</option>
-                <option value="theft">Theft</option>
-                <option value="assault">Assault</option>
-                <option value="fraud">Fraud</option>
-                <option value="cybercrime">Cybercrime</option>
-                <option value="domestic_violence">Domestic Violence</option>
-                <option value="harassment">Harassment</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="incident_description">Detailed Description *</label>
-              <textarea
-                id="incident_description"
-                name="incident_description"
-                required
-                rows="5"
-              ></textarea>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <h3>Additional Information (Optional)</h3>
-            <div class="form-group">
-              <label for="accused_details">Accused Details</label>
-              <textarea
-                id="accused_details"
-                name="accused_details"
-                rows="3"
-              ></textarea>
-            </div>
-            <div class="form-group">
-              <label for="witnesses">Witnesses</label>
-              <textarea
-                id="witnesses"
-                name="witnesses"
-                rows="3"
-                placeholder="Names and contact information of witnesses"
-              ></textarea>
-            </div>
-            <div class="form-group">
-              <label for="property_loss">Property Loss/Damage</label>
-              <textarea
-                id="property_loss"
-                name="property_loss"
-                rows="3"
-              ></textarea>
-            </div>
-            <div class="form-group">
-              <label for="evidence_description">Evidence Description</label>
-              <textarea
-                id="evidence_description"
-                name="evidence_description"
-                rows="3"
-              ></textarea>
-            </div>
-          </div>
-
-          <div class="form-actions">
-            <button type="button" id="cancelFirForm" class="button secondary">
-              Cancel
-            </button>
-            <button type="submit" id="submitFirForm" class="button primary">
-              Submit FIR
-            </button>
-          </div>
-        </form>
+        <div id="fir-form-container" class="fir-form-body">
+          <p style="text-align: center; color: white; padding-top: 20px;">Loading form...</p>
+        </div>
+        <div class="modal-footer">
+        <button type="button" id="cancelFirForm" class="button secondary-button">
+          Cancel
+        </button>
+        <button type="button" id="submitFirForm" class="button primary-button">
+          Submit FIR
+        </button>
+      </div>
       </div>
     </div>
   </body>

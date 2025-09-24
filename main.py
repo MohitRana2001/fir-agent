@@ -157,59 +157,65 @@ async def chat_endpoint(request: Request):
         return JSONResponse({"error": "Empty message"}, status_code=400)
 
     try:
-        conversation_history.append({"role": "user", "content": user_text})
+        with open("fir_template.json", "r") as f:
+            fir_template_str = f.read()
+            
+        combined_input_for_ai = (
+            f"Current FIR Data: {json.dumps(extracted_info)}\n"
+            f"User Message: \"{user_text}\""
+        )
+
+        conversation_history.append({"role": "user", "content": combined_input_for_ai})
         
         client = genai.Client()
         system_prompt = (
-            """
-            "## Persona and Role:\n"
-            "You are an AI Assistant for Indian Police Investigating Officers (IOs), designated as the 'FIR Drafting Assistant' Your purpose is to efficiently analyze provided audio or documents, validate the extracted information, and generate a First Information Report (FIR). Your communication must always be direct, professional, and concise.\n\n"
+            f"""
+            ## Persona and Role:
+            You are an AI Assistant for Indian Police Investigating Officers (IOs), designated as the 'FIR Drafting Assistant'. Your purpose is to efficiently and accurately fill out a First Information Report (FIR) JSON object based on the user's input.
+
             ## Core Workflow:
-            1.  **Analyze Input**: Upon receiving an audio file, a document, or text, your first job is to extract all potential FIR-related information. Use the `parse_document` tool if the input is a file.
-            2.  **Validate Data**: Take all the information you've gathered and immediately use the `validate_data` tool to check for completeness against the required FIR fields.
-            3.  **Report or Finalize**: Based on the output from `validate_data`, you will do one of two things:
-            * **If data is missing**: Report back to the IO with a single, direct message listing every missing item.
-            * **If data is complete**: Immediately proceed to the final step of creating the FIR document using the `create_fir_pdf` tool.
-            ## Communication Directives:
+            1.  **Maintain State**: You are a stateful assistant. In every turn, you will be given the current state of the FIR data as a JSON object. Your primary job is to UPDATE this JSON with any new information found in the user's latest message. DO NOT forget or overwrite existing data unless the user explicitly corrects it.
+            2.  **Extract Information**: Analyze the user's text to find details that match the fields in the provided JSON structure. You must be able to handle mixed languages (e.g., Hindi-English).
+            3.  **Ask for Missing Required Fields**: After extraction, if any of the `required_fields` in the JSON are still `null`, you MUST ask the user for the missing information in a clear, bulleted list.
+            4.  **Output Format**: Your response MUST be in two parts, separated by '---JSON---'.
+                - Part 1: Your conversational text to the user (e.g., asking for missing info).
+                - Part 2: The COMPLETE and UPDATED JSON object.
 
-            1.  **Assume User is an IO**: Your user is a police officer. Do not use empathetic or conversational language. Be direct and formal.
-            
-            Audio-First Comprehensive Analysis:
-            Your primary input is an audio file. Your first task is to process it completely. If no input (audio or document) is provided then directly respond to the text message and say the fields required in numbered list.
+            ## Example Interaction:
 
-            Speaker Diarization: Differentiate between the speakers, identifying who is the Investigating Officer and who is the complainant based on the context of their speech (e.g., who is asking questions vs. who is narrating the incident).
+            **User provides current data and a new message:**
+            '''
+            Current FIR Data: {{"district": null, "policeStation": null, "complainantName": "Rohan Sharma"}}
+            User Message: "The incident happened in the district of Gurugram at the Cyber City police station."
+            '''
 
-            Multilingual Transcription & Understanding: Transcribe the conversation accurately. Be prepared for conversations that mix languages (e.g., Hindi-English, Punjabi-English). Your understanding must be contextual, not just literal.
+            **Your Correct Output:**
+            '''
+            Thank you. I have updated the district and police station. To proceed, please provide the following required details:
+            * firYear
+            * firNo
+            * firDate
+            * complainantAddress
+            * firContents
+            ---JSON---
+            {{
+                "required_fields": {{
+                    "district": "Gurugram",
+                    "policeStation": "Cyber City",
+                    "firYear": null,
+                    "firNo": null,
+                    "firDate": null,
+                    "complainantName": "Rohan Sharma",
+                    "complainantAddress": null,
+                    "firContents": null
+                }},
+                "optional_fields": {{}}
+            }}
+            '''
 
-            Information Extraction: Actively listen for and extract all data points relevant to the Required Information Checklist.
-
-            2.  **Direct Gap Reporting Format**: When the `validate_data` tool indicates that information is missing, you MUST respond in this exact format. Do not deviate.
-                "These details are needed for filling the FIR:
-                * **[Missing Detail 1 from validate_data tool]**
-                * **[Missing Detail 2 from validate_data tool]**
-                * **[And so on...]**"
-
-            3.  **Proactive Assistance (Optional)**: If the provided narrative is vague, you may suggest a clarifying question for the IO alongside the missing detail. For example:
-                * **Clarification on the nature of the assault. (Suggested question: 'Could you please describe exactly how you were attacked? Were any weapons used?')**
-
-            4.  **Finalization and PDF Generation**: Once the `validate_data` tool confirms all required information has been collected (either initially or after the IO provides it), do not ask for confirmation. Your only action is to call the `create_fir_pdf` tool with all the collected data and output the result.
-                * **Success Message**: "All necessary information has been compiled. Generating the FIR PDF."
-            "1.  **Conversational Text**: Your friendly, markdown-formatted message to the user.\n"
-            "2.  **JSON Separator**: The exact separator line '---JSON---'.\n"
-            "3.  **JSON Object**: The complete, valid JSON object with all fields. Update this object in every turn with any new information you've gathered. If a value is not yet known, its value MUST be `null`.\n\n"
-            "### JSON Schema:\n"
-            "The JSON object must contain these exact keys:\n"
-            "- `complainant_name`\n"
-            "- `complainant_address`\n"
-            "- `complainant_phone`\n"
-            "- `incident_date`\n"
-            "- `incident_location`\n"
-            "- `nature_of_complaint`\n"
-            "- `incident_description`\n"
-            "- `accused_details`\n"
-            "- `witnesses`\n"
-            "- `property_loss`\n"
-            "- `evidence_description`\n\n"
+            ## Final JSON Structure to be filled:
+            Your final goal is to fill out this exact JSON structure. Do not add or remove keys.
+            {fir_template_str}
             """
         )
         
@@ -236,13 +242,20 @@ async def chat_endpoint(request: Request):
                 if json_string.endswith("```"):
                     json_string = json_string[:-3]
                 json_string = json_string.strip()
-                
-                extracted_data = json.loads(json_string)
-                for key, value in extracted_data.items():
+                nested_data = json.loads(json_string)
+                flat_data = {}
+                if 'required_fields' in nested_data and nested_data['required_fields']:
+                    flat_data.update(nested_data['required_fields'])
+                if 'optional_fields' in nested_data and nested_data['optional_fields']:
+                    flat_data.update(nested_data['optional_fields'])
+
+                for key, value in flat_data.items():
                     if value and value != "null" and str(value).strip():
                         extracted_info[key] = value
-            except json.JSONDecodeError:
-                print(f"Failed to parse extracted JSON: {json_string}")
+
+            except json.JSONDecodeError as e:
+                print(f"Failed to parse or process extracted JSON: {e}")
+                print(f"Problematic JSON string: {json_string}")
         
         conversation_history.append({"role": "assistant", "content": response_text})
         
@@ -254,7 +267,6 @@ async def chat_endpoint(request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
-# Get current extracted information
 @app.get("/get_extracted_info")
 async def get_extracted_info():
     """Returns currently extracted information for form auto-fill."""
@@ -266,23 +278,21 @@ async def submit_fir_endpoint(request: Request):
     """Accepts FIR form data and uploads it to GCP storage."""
     try:
         fir_data = await request.json()
+    #     required_fields = [
+    #         "complainant_name", "complainant_address", "complainant_phone",
+    #         "incident_date", "incident_location", "incident_description", "nature_of_complaint"
+    #     ]
         
-        # Validate required fields
-        required_fields = [
-            "complainant_name", "complainant_address", "complainant_phone",
-            "incident_date", "incident_location", "incident_description", "nature_of_complaint"
-        ]
+    #     missing_fields = []
+    #     for field in required_fields:
+    #         if not fir_data.get(field, "").strip():
+    #             missing_fields.append(field)
         
-        missing_fields = []
-        for field in required_fields:
-            if not fir_data.get(field, "").strip():
-                missing_fields.append(field)
-        
-        if missing_fields:
-            return JSONResponse(
-                {"success": False, "message": f"Missing required fields: {', '.join(missing_fields)}"},
-                status_code=400
-            )
+    #     if missing_fields:
+    #         return JSONResponse(
+    #             {"success": False, "message": f"Missing required fields: {', '.join(missing_fields)}"},
+    #             status_code=400
+    #         )
         
         # Upload to GCP
         upload_result = tools.upload_fir_to_gcp(fir_data)
