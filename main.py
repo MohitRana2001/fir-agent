@@ -4,122 +4,28 @@ import base64
 import warnings
 import asyncio
 import shutil
+import tempfile
 
 from pathlib import Path
 from dotenv import load_dotenv
 
-from google.genai.types import (
-    Part,
-    Content,
-    Blob,
-)
-
-from google.adk.runners import InMemoryRunner
-from google.adk.agents import LiveRequestQueue
-from google.adk.agents.run_config import RunConfig
-from google.genai import types
+from google import genai
 
 from fastapi import FastAPI, Request, File, UploadFile
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from google import genai
 
-# NEW: Import your tool functions to be used directly
 from fir_agent import tools
 from fir_agent.agent import root_agent
 
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
-#
-# ADK Streaming
-#
-
-# Load Gemini API Key
 load_dotenv()
-
 APP_NAME = "FIR Agent"
-
-# NEW: Create a directory for file uploads
 UPLOADS_DIR = Path("uploads")
 UPLOADS_DIR.mkdir(exist_ok=True)
-
-
-# CHANGED: This function now also creates a client-facing queue for transcriptions
-async def start_agent_session(user_id, is_audio=False):
-    """Starts an agent session"""
-
-    # Create a Runner
-    runner = InMemoryRunner(
-        app_name=APP_NAME,
-        agent=root_agent,
-    )
-
-    # Create a Session
-    session = await runner.session_service.create_session(
-        app_name=APP_NAME,
-        user_id=user_id,
-    )
-
-    # Set response modality
-    modality = "AUDIO" if is_audio else "TEXT"
-    run_config = RunConfig(
-        response_modalities=[modality],
-        session_resumption=types.SessionResumptionConfig()
-    )
-
-    # Create a LiveRequestQueue for this session
-    live_request_queue = LiveRequestQueue()
-
-    # Start agent session
-    live_events = runner.run_live(
-        session=session,
-        live_request_queue=live_request_queue,
-        run_config=run_config,
-    )
-    # CHANGED: Return all three objects
-    return live_events, live_request_queue
-
-
-async def agent_to_client_sse(live_events):
-    """Agent to client communication via SSE"""
-    async for event in live_events:
-        if event.turn_complete or event.interrupted:
-            message = {
-                "turn_complete": event.turn_complete,
-                "interrupted": event.interrupted,
-            }
-            yield f"data: {json.dumps(message)}\n\n"
-            print(f"[AGENT TO CLIENT]: {message}")
-            continue
-
-        part: Part = (
-            event.content and event.content.parts and event.content.parts[0]
-        )
-        if not part:
-            continue
-
-        is_audio = part.inline_data and part.inline_data.mime_type.startswith("audio/pcm")
-        if is_audio:
-            audio_data = part.inline_data and part.inline_data.data
-            if audio_data:
-                message = {
-                    "mime_type": "audio/pcm",
-                    "data": base64.b64encode(audio_data).decode("ascii")
-                }
-                yield f"data: {json.dumps(message)}\n\n"
-                print(f"[AGENT TO CLIENT]: audio/pcm: {len(audio_data)} bytes.")
-                continue
-
-        if part.text and event.partial:
-            message = {
-                "mime_type": "text/plain",
-                "data": part.text
-            }
-            yield f"data: {json.dumps(message)}\n\n"
-            print(f"[AGENT TO CLIENT]: text/plain: {message}")
-
-
-# NEW: An async generator to read from the transcription queue
 async def client_queue_sse(client_queue: asyncio.Queue):
     """Yields messages from the client-facing queue."""
     while True:
@@ -128,7 +34,6 @@ async def client_queue_sse(client_queue: asyncio.Queue):
         print(f"[TRANSCRIPTION TO CLIENT]: {message}")
 
 
-# NEW: An async generator that merges two event streams into one
 async def merge_streams(stream1, stream2):
     """Merges two asynchronous streams of data."""
     task1 = asyncio.create_task(stream1.__anext__())
@@ -143,21 +48,18 @@ async def merge_streams(stream1, stream2):
             try:
                 result = task.result()
                 yield result
-                # Schedule the next item from the stream that just yielded
                 if task is task1:
                     task1 = asyncio.create_task(stream1.__anext__())
-                else: # task is task2
+                else:
                     task2 = asyncio.create_task(stream2.__anext__())
             except StopAsyncIteration:
-                # One of the streams has finished
                 if task is task1:
                     task1 = None
-                else: # task is task2
+                else:
                     task2 = None
         
         if not task1 and not task2:
             break
-        # If one task is done, wait for the other
         elif not task1:
             yield await task2
             async for item in stream2: yield item
@@ -166,12 +68,6 @@ async def merge_streams(stream1, stream2):
             yield await task1
             async for item in stream1: yield item
             break
-
-
-
-#
-# FastAPI web app
-#
 
 app = FastAPI()
 
@@ -188,20 +84,18 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 active_sessions = {}
 
-# CHANGED: This endpoint now handles file uploads for a specific session
+conversation_history = []
+extracted_info = {}
+
 @app.post("/upload/{user_id}")
 async def upload_file(user_id: str, file: UploadFile = File(...)):
     """Uploads a file, parses it, and sends the content to the agent."""
-    if user_id not in active_sessions:
-        return {"success": False, "message": "Session not found"}, 404
 
     file_path = UPLOADS_DIR / file.filename
     try:
-        # Save the uploaded file temporarily
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Parse the document using your tool function
         print(f"Parsing document: {file_path}")
         parsed_text = tools.parse_document(str(file_path))
 
@@ -209,21 +103,15 @@ async def upload_file(user_id: str, file: UploadFile = File(...)):
             print(f"Failed to parse document: {parsed_text}")
             return {"success": False, "message": parsed_text}, 400
         
-        # Send the extracted text to the agent
-        prompt = f"The user has uploaded a document with the following content: {parsed_text}"
-        content = Content(role="user", parts=[Part.from_text(text=prompt)])
+        document_message = f"I have uploaded a document ({file.filename}). Here is the content: {parsed_text}"
+        conversation_history.append({"role": "user", "content": document_message})
         
-        session_data = active_sessions[user_id]
-        agent_queue = session_data["agent_queue"]
-        agent_queue.send_content(content=content)
-        
-        print(f"[CLIENT TO AGENT]: Sent parsed content from {file.filename}")
-        return {"success": True}
+        print(f"[CLIENT TO AGENT]: Parsed content from {file.filename}")
+        return {"success": True, "parsed_content": parsed_text}
 
     except Exception as e:
         return {"success": False, "message": str(e)}, 500
     finally:
-        # Clean up the saved file
         if os.path.exists(file_path):
             os.remove(file_path)
 
@@ -233,75 +121,186 @@ async def root():
     """Serves the index.html"""
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
+@app.post("/transcribe_audio")
+async def transcribe_audio_endpoint(audio_file: UploadFile = File(...)):
+    """Accepts a recorded audio file, transcribes it via Gemini, and returns the text."""
 
-# CHANGED: This endpoint now manages the merged stream of agent and transcription events
-@app.get("/events/{user_id}")
-async def sse_endpoint(user_id: str, is_audio: str = "false"):
-    """SSE endpoint for all client-facing communication"""
+    try:
+        orig_suffix = Path(audio_file.filename).suffix or ".webm"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=orig_suffix) as tmp:
+            content = await audio_file.read()
+            tmp.write(content)
+            tmp_path = tmp.name
 
-    # Start agent session
-    live_events, agent_queue = await start_agent_session(user_id, is_audio == "true")
+        transcription = tools.transcribe_audio_file(tmp_path)
 
-    # Store the queues for this user
-    active_sessions[user_id] = {
-        "agent_queue": agent_queue
-    }
-
-    print(f"Client #{user_id} connected via SSE, audio mode: {is_audio}")
-
-    def cleanup():
-        agent_queue.close()
-        if user_id in active_sessions:
-            del active_sessions[user_id]
-        print(f"Client #{user_id} disconnected from SSE")
-
-    async def event_generator():
         try:
-            # Merge agent events and transcription events into a single stream
-            agent_stream = agent_to_client_sse(live_events)
-            async for data in agent_stream:
-                yield data
-        except Exception as e:
-            print(f"Error in SSE stream: {e}")
-        finally:
-            cleanup()
+            os.unlink(tmp_path)
+        except Exception:
+            pass
 
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Cache-Control"
-        }
-    )
+        if isinstance(transcription, str) and transcription.startswith("Error:"):
+            return JSONResponse({"success": False, "message": transcription}, status_code=500)
 
+        return {"success": True, "transcription": transcription, "filename": audio_file.filename}
 
-# CHANGED: This endpoint now also handles speech-to-text transcription
-@app.post("/send/{user_id}")
-async def send_message_endpoint(user_id: str, request: Request):
-    """HTTP endpoint for client to agent communication"""
+    except Exception as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=500)
 
-    if user_id not in active_sessions:
-        return {"error": "Session not found"}, 404
+@app.post("/chat")
+async def chat_endpoint(request: Request):
+    global conversation_history, extracted_info
     
-    session_data = active_sessions[user_id]
-    agent_queue = session_data["agent_queue"]
+    body = await request.json()
+    user_text = body.get("message", "").strip()
+    if not user_text:
+        return JSONResponse({"error": "Empty message"}, status_code=400)
 
-    message = await request.json()
-    mime_type = message["mime_type"]
-    data = message["data"]
+    try:
+        with open("fir_template.json", "r") as f:
+            fir_template_str = f.read()
+            
+        combined_input_for_ai = (
+            f"Current FIR Data: {json.dumps(extracted_info)}\n"
+            f"User Message: \"{user_text}\""
+        )
 
-    if mime_type == "text/plain":
-        content = Content(role="user", parts=[Part.from_text(text=data)])
-        agent_queue.send_content(content=content)
-        print(f"[CLIENT TO AGENT]: {data}")
-    elif mime_type == "audio/pcm":
-        decoded_data = base64.b64decode(data)
-        agent_queue.send_realtime(Blob(data=decoded_data, mime_type=mime_type))
-        print(f"[CLIENT TO AGENT]: audio/pcm: {len(decoded_data)} bytes")
-    else:
-        return {"error": f"Mime type not supported: {mime_type}"}
+        conversation_history.append({"role": "user", "content": combined_input_for_ai})
+        
+        client = genai.Client()
+        system_prompt = (
+            f"""
+            ## Persona and Role:
+            You are an AI Assistant for Indian Police Investigating Officers (IOs), designated as the 'FIR Drafting Assistant'. Your purpose is to efficiently and accurately fill out a First Information Report (FIR) JSON object based on the user's input.
 
-    return {"status": "sent"}
+            ## Core Workflow:
+            1.  **Maintain State**: You are a stateful assistant. In every turn, you will be given the current state of the FIR data as a JSON object. Your primary job is to UPDATE this JSON with any new information found in the user's latest message. DO NOT forget or overwrite existing data unless the user explicitly corrects it.
+            2.  **Extract Information**: Analyze the user's text to find details that match the fields in the provided JSON structure. You must be able to handle mixed languages (e.g., Hindi-English).
+            3.  **Ask for Missing Required Fields**: After extraction, if any of the `required_fields` in the JSON are still `null`, you MUST ask the user for the missing information in a clear, bulleted list.
+            4.  **Output Format**: Your response MUST be in two parts, separated by '---JSON---'.
+                - Part 1: Your conversational text to the user (e.g., asking for missing info).
+                - Part 2: The COMPLETE and UPDATED JSON object.
+
+            ## Example Interaction:
+
+            **User provides current data and a new message:**
+            '''
+            Current FIR Data: {{"district": null, "policeStation": null, "complainantName": "Rohan Sharma"}}
+            User Message: "The incident happened in the district of Gurugram at the Cyber City police station."
+            '''
+
+            **Your Correct Output:**
+            '''
+            Thank you. I have updated the district and police station. To proceed, please provide the following required details:
+            * firYear
+            * firNo
+            * firDate
+            * complainantAddress
+            * firContents
+            ---JSON---
+            {{
+                "required_fields": {{
+                    "district": "Gurugram",
+                    "policeStation": "Cyber City",
+                    "firYear": null,
+                    "firNo": null,
+                    "firDate": null,
+                    "complainantName": "Rohan Sharma",
+                    "complainantAddress": null,
+                    "firContents": null
+                }},
+                "optional_fields": {{}}
+            }}
+            '''
+
+            ## Final JSON Structure to be filled:
+            Your final goal is to fill out this exact JSON structure. Do not add or remove keys.
+            {fir_template_str}
+            """
+        )
+        
+        messages = [{"role": "user", "parts": [{"text": system_prompt}]}]
+        
+        for msg in conversation_history[-10:]: 
+            messages.append({"role": "user" if msg["role"] == "user" else "model", "parts": [{"text": msg["content"]}]})
+        
+        resp = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=messages,
+        )
+        
+        full_response_text = getattr(resp, "text", "")
+        
+        response_parts = full_response_text.split("---JSON---")
+        response_text = response_parts[0].strip()
+        
+        if len(response_parts) > 1:
+            json_string = response_parts[1].strip()
+            try:
+                if json_string.startswith("```json"):
+                    json_string = json_string[7:]
+                if json_string.endswith("```"):
+                    json_string = json_string[:-3]
+                json_string = json_string.strip()
+                nested_data = json.loads(json_string)
+                flat_data = {}
+                if 'required_fields' in nested_data and nested_data['required_fields']:
+                    flat_data.update(nested_data['required_fields'])
+                if 'optional_fields' in nested_data and nested_data['optional_fields']:
+                    flat_data.update(nested_data['optional_fields'])
+
+                for key, value in flat_data.items():
+                    if value and value != "null" and str(value).strip():
+                        extracted_info[key] = value
+
+            except json.JSONDecodeError as e:
+                print(f"Failed to parse or process extracted JSON: {e}")
+                print(f"Problematic JSON string: {json_string}")
+        
+        conversation_history.append({"role": "assistant", "content": response_text})
+        
+        return {
+            "text": response_text,
+            "extracted_info": extracted_info 
+        }
+        
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/get_extracted_info")
+async def get_extracted_info():
+    """Returns currently extracted information for form auto-fill."""
+    global extracted_info
+    return {"extracted_info": extracted_info}
+
+@app.post("/submit_fir")
+async def submit_fir_endpoint(request: Request):
+    """Accepts FIR form data and uploads it to GCP storage."""
+    try:
+        fir_data = await request.json()
+    #     required_fields = [
+    #         "complainant_name", "complainant_address", "complainant_phone",
+    #         "incident_date", "incident_location", "incident_description", "nature_of_complaint"
+    #     ]
+        
+    #     missing_fields = []
+    #     for field in required_fields:
+    #         if not fir_data.get(field, "").strip():
+    #             missing_fields.append(field)
+        
+    #     if missing_fields:
+    #         return JSONResponse(
+    #             {"success": False, "message": f"Missing required fields: {', '.join(missing_fields)}"},
+    #             status_code=400
+    #         )
+        
+        # Upload to GCP
+        upload_result = tools.upload_fir_to_gcp(fir_data)
+        
+        if upload_result.startswith("Success:"):
+            return {"success": True, "message": upload_result}
+        else:
+            return JSONResponse({"success": False, "message": upload_result}, status_code=500)
+            
+    except Exception as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=500)

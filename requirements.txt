@@ -6,5 +6,7 @@ pydantic
 dotenv
 google-genai
 google-generativeai
+google-cloud-storage
 IPython
 Flask
+weasyprint
